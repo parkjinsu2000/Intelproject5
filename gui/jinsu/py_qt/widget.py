@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
-from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QPushButton, QMessageBox
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QGraphicsView, QGraphicsScene,
+    QPushButton, QMessageBox, QVBoxLayout
+)
+from PyQt5.QtGui import QPixmap, QImage, QPainter
 from PyQt5.QtCore import QTimer, Qt
 from pose_utils import (
     normalize_keypoints,
@@ -11,7 +14,6 @@ from pose_utils import (
     draw_pose,
     put_text
 )
-
 from model_loader import make_infer
 
 class PoseScoreApp(QMainWindow):
@@ -29,6 +31,7 @@ class PoseScoreApp(QMainWindow):
         self.lastR = {"kps": None, "conf": None}
         self.lastU = {"kps": None, "conf": None}
         self.mirror = not self.args.no_mirror
+        self.last_canvas = None
 
         self.init_ui()
         self.init_video()
@@ -39,11 +42,23 @@ class PoseScoreApp(QMainWindow):
 
         self.scene = QGraphicsScene(self)
         self.graphicsView = QGraphicsView(self.scene, self)
-        self.graphicsView.setGeometry(10, 60, 1260, 640)
+        self.graphicsView.setRenderHint(QPainter.Antialiasing)
+        self.graphicsView.setResizeAnchor(QGraphicsView.AnchorViewCenter)
+        self.graphicsView.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.graphicsView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.graphicsView.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.graphicsView.setFrameShape(QGraphicsView.NoFrame)
 
         self.button = QPushButton("영상 시작", self)
-        self.button.setGeometry(10, 10, 200, 40)
         self.button.clicked.connect(self.start_video)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.button)
+        layout.addWidget(self.graphicsView)
+
+        central_widget = QWidget()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
@@ -108,12 +123,10 @@ class PoseScoreApp(QMainWindow):
                     self.total_points = min(100, self.total_points + 1)
                 print(f"[total]@{self.total_points}")
 
-
-                if self.lastR["kps"] is not None and self.lastR["kps"].size > 0:
-                    draw_pose(fR, self.lastR["kps"], kps_conf=self.lastR["conf"])
-
-                if self.lastU["kps"] is not None and self.lastU["kps"].size > 0:
-                    draw_pose(fU, self.lastU["kps"], kps_conf=self.lastU["conf"])
+        if self.lastR["kps"] is not None and self.lastR["kps"].size > 0:
+            draw_pose(fR, self.lastR["kps"], kps_conf=self.lastR["conf"])
+        if self.lastU["kps"] is not None and self.lastU["kps"].size > 0:
+            draw_pose(fU, self.lastU["kps"], kps_conf=self.lastU["conf"])
 
         canvas = np.hstack([fR, fU])
         self.update_canvas(canvas)
@@ -122,25 +135,29 @@ class PoseScoreApp(QMainWindow):
             self.writer.write(canvas)
 
     def update_canvas(self, canvas):
-        scale = self.args.disp_scale
-        max_width = self.args.disp_width
-        if max_width and max_width > 0:
-            scale = min(scale, float(max_width) / canvas.shape[1])
-        if scale < 1.0:
-            canvas = cv2.resize(canvas, (int(canvas.shape[1]*scale), int(canvas.shape[0]*scale)), interpolation=cv2.INTER_AREA)
+        self.last_canvas = canvas.copy()
 
-        h, w, ch = canvas.shape
-        qimg = QImage(canvas.data, w, h, 3*w, QImage.Format_RGB888).rgbSwapped()
+        view_size = self.graphicsView.viewport().size()
+        new_w, new_h = view_size.width(), view_size.height()
+
+        canvas = cv2.resize(canvas, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+        qimg = QImage(canvas.data, new_w, new_h, 3 * new_w, QImage.Format_RGB888).rgbSwapped()
         pixmap = QPixmap.fromImage(qimg)
+
         self.scene.clear()
+        self.scene.setSceneRect(0, 0, new_w, new_h)
         self.scene.addPixmap(pixmap)
         self.graphicsView.setScene(self.scene)
-        self.graphicsView.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
+
+    def resizeEvent(self, event):
+        if self.last_canvas is not None:
+            self.update_canvas(self.last_canvas)
+        super().resizeEvent(event)
 
     def closeEvent(self, event):
         if self.capR: self.capR.release()
         if self.capU: self.capU.release()
         if self.writer: self.writer.release()
-        cv2.destroyAllWindows()
         print(f"[final] total score = {self.total_points}")
         event.accept()
