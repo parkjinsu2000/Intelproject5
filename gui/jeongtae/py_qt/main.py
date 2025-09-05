@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import QApplication
 
 def main():
     args = SimpleNamespace(
-        ref="person.mp4",
+        # ref="person.mp4",
+        ref="/home/ubuntu/workspace_intel/pyQt/ref_video/ref_1.mp4",
         cam=0,
         start=3.0,
         every=10,
