@@ -9,7 +9,7 @@ def main():
         ref="person.mp4",
         cam=0,
         start=3.0,
-        every=5,
+        every=10,
         no_mirror=False,
         disp_scale=1.0,
         disp_width=1280,
