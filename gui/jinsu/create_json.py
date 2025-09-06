@@ -64,17 +64,17 @@ def create_json_from_video(video_path, model_path, output_json, imgsz, device, u
 if __name__ == "__main__":
     # 💡 You can set the video and output paths directly here
     video_dir = "videos"
-    video_filename = "naruto.mp4" # 👈 여기에 동영상 파일 이름을 입력하세요
+    video_filename = "whiplash.mp4" # 👈 여기에 동영상 파일 이름을 입력하세요
     video_path = os.path.join(video_dir, video_filename)
     
-    output_json = "output.json" # 👈 여기에 출력할 JSON 파일 이름을 입력하세요
+    output_json = "whiplash.json" # 👈 여기에 출력할 JSON 파일 이름을 입력하세요
     
     # Optional arguments, you can change them as needed
     model_path = "yolov8n-pose.pt"
     imgsz = 320
     device = "cuda" if torch.cuda.is_available() else "cpu"
     use_half = False
-    step = 1
+    step = 10
     
     if not output_json.endswith('.json'):
         output_json += '.json'

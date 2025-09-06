@@ -6,11 +6,11 @@ import sys
 import time
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QSizePolicy,
-    QStackedWidget, QSplitter, QMessageBox
+    QStackedWidget, QSplitter, QMessageBox, QGraphicsOpacityEffect
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import QTimer, Qt, QUrl, QFileInfo, QSize, QEvent, QRect, QPoint, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import QTimer, Qt, QUrl, QFileInfo, QSize, QEvent, QRect, QPoint, QPropertyAnimation, QEasingCurve, QCoreApplication
 from PyQt5.QtGui import QImage, QPixmap, QFont, QColor, QPainter, QBrush
 from model_loader import make_infer
 from pose_utils import (
@@ -39,6 +39,13 @@ class PoseScoreApp(QWidget):
         self.infer_pose = make_infer(self.model, self.args, self.use_half)
         print("Using pre-loaded pose detection model.")
 
+        if self.args.json is None:
+            error_message = "Error: JSON file path not provided. Please provide a path using the --json argument."
+            print(error_message)
+            QMessageBox.critical(self, "Error", error_message)
+            self.close()
+            return
+
         try:
             with open(self.args.json, 'r') as f:
                 self.reference_data = json.load(f)["frames"]
@@ -64,6 +71,8 @@ class PoseScoreApp(QWidget):
         self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.player.setVideoOutput(self.video_widget)
         self.player.setVolume(100)
+        # 비디오 재생이 끝났을 때를 감지하는 시그널 연결
+        self.player.stateChanged.connect(self.handle_video_state)
 
         self.video_stack = QStackedWidget()
         self.video_stack.setContentsMargins(0, 0, 0, 0)
@@ -93,6 +102,14 @@ class PoseScoreApp(QWidget):
         self.overlay_label.setFont(QFont("Arial", int(96 * 1.5)))
         self.overlay_label.setAttribute(Qt.WA_TransparentForMouseEvents)
 
+        # 피드백 텍스트를 위한 QLabel 추가
+        self.feedback_label = QLabel(self.cam_label)
+        # 피드백 라벨 위치를 중앙이 아닌 왼쪽 상단으로 변경
+        self.feedback_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.feedback_label.setContentsMargins(20, 20, 0, 0) # 여백 추가
+        self.feedback_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.feedback_label.hide() # 초반에는 숨김
+
         right_container = QWidget()
         right_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_layout = QVBoxLayout(right_container)
@@ -109,10 +126,10 @@ class PoseScoreApp(QWidget):
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
-        root_layout.setSpacing(0)
         root_layout.addWidget(self.splitter)
 
-        self.show_preview_frame(self.args.ref)
+        if self.args.ref is not None:
+            self.show_preview_frame(self.args.ref)
 
         self.cap = None
         self.init_webcam()
@@ -123,13 +140,26 @@ class PoseScoreApp(QWidget):
         self.count_timer.start(1000)
 
         self.feedback = ""
-        self.current_opacity = 1.0
-        self.fade_step = 0.05
-        self.fade_timer = QTimer(self)
-        self.fade_timer.timeout.connect(self.update_fade)
+        self.feedback_opacity_effect = QGraphicsOpacityEffect(self.feedback_label)
+        self.feedback_label.setGraphicsEffect(self.feedback_opacity_effect)
+        self.fade_animation = QPropertyAnimation(self.feedback_opacity_effect, b"opacity")
+        self.fade_animation.setDuration(1500) # 1.5초 동안 서서히 사라짐
+        self.fade_animation.setStartValue(1.0)
+        self.fade_animation.setEndValue(0.0)
+        self.fade_animation.setEasingCurve(QEasingCurve.OutQuad)
+        self.fade_animation.finished.connect(self.feedback_label.hide)
 
         self.score_timer = QTimer(self)
+        # 1초에 3번 계산하도록 333ms로 설정
         self.score_timer.timeout.connect(self.calculate_score)
+
+        # 최종 점수 관련 변수 추가
+        self.final_score = 80
+        self.game_over = False
+
+        # 최근 3개 프레임 점수를 저장할 리스트 (1초에 3번 계산되므로)
+        self.score_history = []
+        self.score_history_length = 3
 
         QTimer.singleShot(0, self.equalize_splitter)
 
@@ -193,6 +223,12 @@ class PoseScoreApp(QWidget):
             )
 
     def update_frame(self):
+        # When the game is over, this timer function will stop drawing frames
+        # and instead call the function to display the final score.
+        if self.game_over:
+            self.display_final_score()
+            return
+
         if self.cap and self.cap.isOpened():
             try:
                 ret, frame = self.cap.read()
@@ -209,36 +245,25 @@ class PoseScoreApp(QWidget):
                 qt_image = QImage(frame_rgb.data, w, h, ch * w, QImage.Format_RGB888)
                 pixmap = QPixmap.fromImage(qt_image)
 
-                # 피드백 텍스트를 직접 그립니다.
-                if self.feedback:
-                    painter = QPainter(pixmap)
-                    painter.setRenderHint(QPainter.Antialiasing)
-                    painter.setRenderHint(QPainter.TextAntialiasing)
-
-                    # 폰트 크기 비율을 5로 되돌립니다.
-                    font_size = max(30, int(pixmap.height() / 5))
-                    font = QFont("Arial", font_size, QFont.Bold)
-                    painter.setFont(font)
-
-                    if self.feedback == "GOOD":
-                        painter.setPen(QColor(0, 255, 0, int(self.current_opacity * 255)))
-                    else:
-                        painter.setPen(QColor(255, 0, 0, int(self.current_opacity * 255)))
-
-                    # 글씨 잘림 현상을 해결하기 위해 텍스트 영역의 높이를 더 크게 설정
-                    text_rect = QRect(0, 0, pixmap.width(), int(pixmap.height() * 0.3))
-                    painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignTop, self.feedback)
-                    painter.end()
-
                 self.cam_label.setPixmap(
                     pixmap.scaled(self.cam_label.size(),
                                  Qt.KeepAspectRatio,
                                  Qt.SmoothTransformation)
                 )
 
+                # 피드백 라벨의 위치와 크기를 웹캠 라벨의 크기에 맞춰 좌측 상단에 설정
+                # 텍스트가 잘리지 않도록 상자 크기를 키웠습니다.
+                self.feedback_label.setGeometry(
+                    10, 10, int(self.cam_label.width() / 3), int(self.cam_label.height() / 5)
+                )
+                self.feedback_label.setFont(QFont("Arial", int(self.cam_label.height() / 15), QFont.Bold))
+
                 # 카운트다운 라벨이 보일 때만 위치 재설정 (중앙)
                 if not self.overlay_label.isHidden():
                     self.overlay_label.setGeometry(self.cam_label.rect())
+                    overlay_font_size = int(self.cam_label.height() / 5)
+                    self.overlay_label.setFont(QFont("Arial", overlay_font_size, QFont.Bold))
+
 
             except Exception as e:
                 print(f"Exception during frame processing: {e}")
@@ -248,7 +273,7 @@ class PoseScoreApp(QWidget):
                     self.frame_timer.stop()
 
     def calculate_score(self):
-        if not self.cap or not self.cap.isOpened() or self.count > 0:
+        if not self.cap or not self.cap.isOpened() or self.count > 0 or self.game_over:
             return
 
         ret, frame = self.cap.read()
@@ -256,12 +281,18 @@ class PoseScoreApp(QWidget):
             return
 
         cam_kps, cam_conf = self.infer_pose(frame)
+        current_score = -1.0 # 기본값
 
-        new_feedback = ""
         if cam_kps is not None and len(self.reference_data) > 0:
-            ref_frame_index = self.player.position() // 1000 * 30
-            if ref_frame_index < len(self.reference_data):
-                ref_data = self.reference_data[ref_frame_index]
+            # 비디오 현재 위치를 기반으로 정답 프레임 인덱스 계산
+            # `self.player.position()`은 밀리초 단위이므로, 이를 초 단위로 변환 후 30fps를 곱합니다.
+            ref_frame_index = int(self.player.position() / 1000 * 30)
+
+            # 정답 데이터는 10프레임마다 저장되어 있으므로, 인덱스를 10으로 나눕니다.
+            ref_data_index = ref_frame_index // 10
+
+            if ref_data_index < len(self.reference_data):
+                ref_data = self.reference_data[ref_data_index]
                 ref_kps = np.array(ref_data["kps"])
 
                 cam_kps_norm = normalize_keypoints(cam_kps)
@@ -271,30 +302,50 @@ class PoseScoreApp(QWidget):
                 vec_live = pose_to_anglevec(cam_kps_norm)
 
                 score, _, _ = frame_score_strict(vec_ref, vec_live)
+                current_score = score
 
-                if score > 0.5:
-                    new_feedback = "GOOD"
-                else:
-                    new_feedback = "BAD"
+        # 최근 점수를 히스토리에 추가
+        if current_score != -1.0:
+            self.score_history.append(current_score)
+
+        # 히스토리 점수가 3개 이상 쌓이면 평균을 계산하여 피드백 출력
+        if len(self.score_history) >= self.score_history_length:
+            smoothed_score = np.mean(self.score_history)
+
+            new_feedback = ""
+            if smoothed_score >= 80.0:
+                new_feedback = "PERFECT"
+            elif smoothed_score >= 50.0:
+                new_feedback = "GOOD"
             else:
-                 new_feedback = ""
+                new_feedback = "BAD"
 
-        if new_feedback and new_feedback != self.feedback:
+            # 최종 점수 업데이트 로직: PERFECT는 +1, BAD는 -1
+            if new_feedback == "PERFECT":
+                self.final_score = min(100, self.final_score + 1)
+            elif new_feedback == "BAD":
+                self.final_score = max(0, self.final_score - 1)
+            # GOOD일 때는 점수를 유지
+
+            # 피드백이 새로 들어오면 애니메이션을 다시 시작합니다.
             self.feedback = new_feedback
-            self.current_opacity = 1.0
-            self.fade_timer.start(50)
+            self.feedback_label.setText(new_feedback)
+            if new_feedback == "PERFECT":
+                self.feedback_label.setStyleSheet("color: lime; font-weight: bold;")
+            elif new_feedback == "GOOD":
+                self.feedback_label.setStyleSheet("color: yellow; font-weight: bold;")
+            else: # BAD
+                self.feedback_label.setStyleSheet("color: red; font-weight: bold;")
 
-    def update_fade(self):
-        """투명도를 점진적으로 낮춰 텍스트를 사라지게 합니다."""
-        self.current_opacity -= self.fade_step
-        if self.current_opacity <= 0:
-            self.current_opacity = 0
-            self.fade_timer.stop()
-            self.feedback = "" # 피드백 텍스트 자체를 지웁니다.
-            self.update_frame() # 텍스트가 사라진 후 프레임을 다시 그립니다.
+            # 애니메이션을 멈추고 Opacity를 1.0으로 리셋 후 다시 시작
+            self.fade_animation.stop()
+            self.feedback_label.show()
+            self.feedback_opacity_effect.setOpacity(1.0)
+            self.fade_animation.start()
 
-        # 텍스트가 페이드아웃 되는 동안 계속 업데이트
-        self.update_frame()
+            # 피드백을 출력한 후, 다음 1초를 위해 히스토리를 초기화합니다.
+            self.score_history = []
+
 
     def update_countdown(self):
         self.count -= 1
@@ -308,15 +359,70 @@ class PoseScoreApp(QWidget):
             self.video_stack.setCurrentWidget(self.video_widget)
             QTimer.singleShot(0, self.equalize_splitter)
             self.play_video()
-            self.score_timer.start(200)
+            # 포즈 스코어 계산 주기를 10프레임에 해당하는 333ms로 변경합니다.
+            self.score_timer.start(333)
 
     def play_video(self):
-        abs_path = QFileInfo(self.args.ref).absoluteFilePath()
-        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(abs_path)))
-        self.player.play()
+        if self.args.ref:
+            abs_path = QFileInfo(self.args.ref).absoluteFilePath()
+            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(abs_path)))
+            self.player.play()
 
-    def update_overlay_size_and_position(self):
-        pass
+    def handle_video_state(self, state):
+        """비디오 상태 변화를 감지하여 게임 종료를 처리합니다."""
+        # 비디오가 멈췄을 때만 최종 점수를 표시
+        if state == QMediaPlayer.StoppedState:
+            print("비디오 재생이 종료되었습니다. 최종 점수를 표시합니다.")
+            self.game_over = True
+            # 비디오가 멈추면 모든 타이머를 즉시 중지합니다.
+            if self.frame_timer:
+                self.frame_timer.stop()
+            if self.score_timer:
+                self.score_timer.stop()
+            self.display_final_score()
+
+    def display_final_score(self):
+        """최종 점수를 화면에 그립니다."""
+        # Ensure the cam_label has a valid size before drawing
+        label_size = self.cam_label.size()
+        if label_size.width() <= 1 or label_size.height() <= 1:
+            print("Warning: cam_label size is too small to draw final score. Retrying...")
+            QTimer.singleShot(50, self.display_final_score)
+            return
+
+        pixmap = QPixmap(label_size)
+        pixmap.fill(QColor(0, 0, 0)) # 검은 배경
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
+        # 제목
+        title_font = QFont("Arial", 40, QFont.Bold)
+        painter.setFont(title_font)
+        painter.setPen(QColor(255, 255, 255))
+        title_rect = QRect(0, int(pixmap.height() * 0.2), pixmap.width(), 50)
+        painter.drawText(title_rect, Qt.AlignCenter, "FINAL SCORE")
+
+        # 점수
+        score_font = QFont("Arial", 120, QFont.Bold)
+        painter.setFont(score_font)
+
+        # 점수 정수형 변환
+        score_to_display = int(self.final_score)
+
+        # 점수 색상 설정
+        if score_to_display >= 80:
+            painter.setPen(QColor(0, 255, 0))
+        elif score_to_display >= 50:
+            painter.setPen(QColor(255, 255, 0))
+        else:
+            painter.setPen(QColor(255, 0, 0))
+
+        score_rect = QRect(0, int(pixmap.height() * 0.4), pixmap.width(), 200)
+        painter.drawText(score_rect, Qt.AlignCenter, str(score_to_display))
+
+        painter.end()
+        self.cam_label.setPixmap(pixmap)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -328,6 +434,11 @@ class PoseScoreApp(QWidget):
         super().resizeEvent(event)
         if self.count >= 0:
             self.overlay_label.setGeometry(self.cam_label.rect())
+            overlay_font_size = int(self.cam_label.height() / 5)
+            self.overlay_label.setFont(QFont("Arial", overlay_font_size, QFont.Bold))
+        if self.game_over:
+            # When the window is resized after the game is over, redraw the score
+            self.display_final_score()
 
     def closeEvent(self, event):
         if self.frame_timer:
