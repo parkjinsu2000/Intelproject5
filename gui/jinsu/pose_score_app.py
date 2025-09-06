@@ -252,9 +252,9 @@ class PoseScoreApp(QWidget):
                 )
 
                 # 피드백 라벨의 위치와 크기를 웹캠 라벨의 크기에 맞춰 좌측 상단에 설정
-                # 텍스트가 잘리지 않도록 상자 크기를 키웠습니다.
+                # 텍스트가 잘리지 않도록 상자 크기를 훨씬 크게 키웠습니다.
                 self.feedback_label.setGeometry(
-                    10, 10, int(self.cam_label.width() / 3), int(self.cam_label.height() / 5)
+                    10, 10, int(self.cam_label.width() / 1.5), int(self.cam_label.height() / 3)
                 )
                 self.feedback_label.setFont(QFont("Arial", int(self.cam_label.height() / 15), QFont.Bold))
 
