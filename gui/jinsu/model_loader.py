@@ -1,8 +1,26 @@
-# model_loader.py
 import torch
 import numpy as np
 from ultralytics import YOLO
 from pose_utils import KPT_CONF_THRES
+
+def load_model(model_path: str, device: str, use_half: bool):
+    """
+    Loads a YOLO pose model from the given path.
+    """
+    if not torch.cuda.is_available() and device == 'cuda':
+        print("CUDA is not available. Using CPU instead.")
+        device = 'cpu'
+        use_half = False
+    
+    try:
+        model = YOLO(model_path)
+        model.to(device)
+        model.eval()
+        print(f"Successfully loaded model from {model_path} on device {device}.")
+        return model, use_half
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None, use_half
 
 def make_infer(model, args, use_half: bool):
     def infer_pose(frame):
