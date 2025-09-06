@@ -134,7 +134,7 @@ class PoseScoreApp(QWidget):
         self.cap = None
         self.init_webcam()
 
-        self.count = 4
+        self.count = 6  # 5초 카운트다운을 위해 6부터 시작
         self.count_timer = QTimer(self)
         self.count_timer.timeout.connect(self.update_countdown)
         self.count_timer.start(1000)
@@ -160,6 +160,9 @@ class PoseScoreApp(QWidget):
         # 최근 3개 프레임 점수를 저장할 리스트 (1초에 3번 계산되므로)
         self.score_history = []
         self.score_history_length = 3
+
+        # 따라하기 기능을 위한 지연 시간 (밀리초)
+        self.follow_delay_ms = 200
 
         QTimer.singleShot(0, self.equalize_splitter)
 
@@ -285,8 +288,13 @@ class PoseScoreApp(QWidget):
 
         if cam_kps is not None and len(self.reference_data) > 0:
             # 비디오 현재 위치를 기반으로 정답 프레임 인덱스 계산
-            # `self.player.position()`은 밀리초 단위이므로, 이를 초 단위로 변환 후 30fps를 곱합니다.
-            ref_frame_index = int(self.player.position() / 1000 * 30)
+            # '따라하기' 기능을 위해 현재 시점보다 200ms 이전의 프레임을 사용합니다.
+            delayed_position = self.player.position() - self.follow_delay_ms
+            if delayed_position < 0:
+                delayed_position = 0
+
+            # `delayed_position`은 밀리초 단위이므로, 이를 초 단위로 변환 후 30fps를 곱합니다.
+            ref_frame_index = int(delayed_position / 1000 * 30)
 
             # 정답 데이터는 10프레임마다 저장되어 있으므로, 인덱스를 10으로 나눕니다.
             ref_data_index = ref_frame_index // 10
