@@ -1,334 +1,246 @@
-# widget.py
-
 import cv2
-import numpy as np
-import json
-import os
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QGraphicsView, QGraphicsScene,
-    QPushButton, QMessageBox, QHBoxLayout
+    QWidget, QLabel, QVBoxLayout, QSizePolicy,
+    QStackedWidget, QSplitter
 )
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioOutput
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import QUrl, QFileInfo
-from PyQt5.QtGui import QPixmap, QImage, QPainter
-from PyQt5.QtCore import QTimer, Qt
-from pose_utils import (
-    normalize_keypoints,
-    flip_horizontal_pts,
-    pose_to_anglevec,
-    frame_score_strict,
-    draw_pose
-)
-from model_loader import make_infer
+from PyQt5.QtCore import QTimer, Qt, QUrl, QFileInfo, QSize, QEvent, QRect
+from PyQt5.QtGui import QImage, QPixmap, QFont
+import sys
 
-class PoseScoreApp(QWidget):  # ✅ QWidget으로 변경
-    def __init__(self, args, model, use_half):
+# QVideoWidget 상속 → sizeHint 무시 및 최소 크기 설정
+class MyVideoWidget(QVideoWidget):
+    """QVideoWidget을 상속받아 sizeHint를 오버라이드하여 레이아웃 내에서 유연하게 크기 조절"""
+    def sizeHint(self):
+        # 최소 크기를 반환하여 위젯이 0으로 수축되는 것을 방지
+        return QSize(1, 1)
+
+class PoseScoreApp(QWidget):
+    """
+    포즈 교정 앱의 메인 위젯 클래스:
+    왼쪽(참고 영상)과 오른쪽(웹캠) 화면을 QSplitter로 반반 분할하여 관리
+    """
+    def __init__(self, args, model=None, use_half=False):
         super().__init__()
         self.args = args
         self.model = model
         self.use_half = use_half
-        self.infer_pose = make_infer(model, args, use_half)
+        self.setMinimumSize(400, 300) # 윈도우 최소 크기 설정
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # 분석 상태 초기화
-        self.total_points = 100
-        self.ema_score = None
-        self.ema_alpha = 0.25
-        self.frame_idx = 0
-        self.lastR = {"kps": None, "conf": None}
-        self.lastU = {"kps": None, "conf": None}
-        self.mirror = not args.no_mirror
-        self.status_text = ""
-        self.status_color = (255, 255, 255)
-        self.writer = None
+        # --- 1. 왼쪽 화면 (미리보기/재생 전환) 설정 ---
+        self.preview_label = QLabel()
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.preview_label.setScaledContents(True)
+        self.preview_label.setMinimumSize(1, 1)
 
-        # 카운트다운 설정
-        self.countdown_texts = ["3", "2", "1", "START"]
-        self.countdown_index = 0
-        self.countdown_timer = QTimer()
-        self.countdown_timer.timeout.connect(self.show_countdown_step)
+        self.video_widget = MyVideoWidget()
+        self.video_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.video_widget.setMinimumSize(1, 1)
 
-        # UI 및 영상 초기화
-        self.init_ui()
-        self.init_video()
-        self.start_countdown()
+        self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
+        self.player.setVideoOutput(self.video_widget)
+        self.player.setVolume(100)
 
-    def init_ui(self):
+        self.video_stack = QStackedWidget()
+        self.video_stack.setContentsMargins(0, 0, 0, 0)
+        self.video_stack.addWidget(self.preview_label)
+        self.video_stack.addWidget(self.video_widget)
+        self.video_stack.setCurrentWidget(self.preview_label)
 
-        self.resize(1280, 720)
+        left_container = QWidget()
+        left_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        left_layout = QVBoxLayout(left_container)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        left_layout.addWidget(self.video_stack)
 
-        # 왼쪽: 정답 영상
-        self.video_widget_left = QVideoWidget()
-        self.player_left = QMediaPlayer(None, QMediaPlayer.VideoSurface)
-        self.player_left.setVideoOutput(self.video_widget_left)
-        self.player_left.setVolume(100)
-        self.video_widget_left.show()
+        # --- 2. 오른쪽 화면 (웹캠) 설정 ---
+        self.cam_label = QLabel()
+        self.cam_label.setAlignment(Qt.AlignCenter)
+        self.cam_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.cam_label.setScaledContents(True)
+        self.cam_label.setMinimumSize(1, 1)
 
-        # 오른쪽: 실시간 분석 영상
-        self.scene_right = QGraphicsScene(self)
-        self.graphicsView_right = QGraphicsView(self.scene_right, self)
-        self.graphicsView_right.setRenderHint(QPainter.Antialiasing)
-        self.graphicsView_right.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.graphicsView_right.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.graphicsView_right.setFrameShape(QGraphicsView.NoFrame)
+        # 카운트다운 오버레이
+        self.overlay_label = QLabel("", self.cam_label)
+        self.overlay_label.setAlignment(Qt.AlignCenter)
+        self.overlay_label.setStyleSheet("color: red; font-weight: bold;")
+        self.overlay_label.setFont(QFont("Arial", 96))
+        self.overlay_label.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        layout = QHBoxLayout()
-        layout.addWidget(self.video_widget_left)
-        layout.addWidget(self.graphicsView_right)
+        right_container = QWidget()
+        right_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+        right_layout.addWidget(self.cam_label)
 
-        self.setLayout(layout)  # ✅ QWidget에서는 setCentralWidget 대신 setLayout 사용
+        # --- 3. Splitter 및 전체 레이아웃 설정 ---
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.addWidget(left_container)
+        self.splitter.addWidget(right_container)
+        # 초기 비율 설정 (1:1)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frame)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+        root_layout.addWidget(self.splitter)
 
-    # def init_video(self):
-    #     self.capU = cv2.VideoCapture(self.args.cam)
-    #     self.capR = cv2.VideoCapture(self.args.ref)
-    #     if not self.capU.isOpened():
-    #         QMessageBox.critical(self, "오류", "카메라 열기 실패")
-    #         return
+        # --- 4. 초기 동작 및 타이머 설정 ---
+        self.show_preview_frame(self.args.ref)
 
-    #     if not self.capR.isOpened():
-    #         QMessageBox.critical(self, "오류", "기준 영상 열기 실패")
-    #         return
+        self.cap = cv2.VideoCapture(self.args.cam)
+        if not self.cap.isOpened():
+            print(f"Error: 웹캠 ({self.args.cam})을 열 수 없습니다. 다른 프로그램이 사용 중이거나 인덱스가 잘못되었을 수 있습니다.")
+            self.cam_label.setText("웹캠을 찾을 수 없습니다.")
+            self.cam_label.setStyleSheet("font-size: 20px; color: red;")
+            self.frame_timer = None
+        else:
+            self.frame_timer = QTimer(self)
+            self.frame_timer.timeout.connect(self.update_frame)
+            self.frame_timer.start(30)
 
-    #     W = int(max(self.capR.get(cv2.CAP_PROP_FRAME_WIDTH), 640))
-    #     H = int(max(self.capR.get(cv2.CAP_PROP_FRAME_HEIGHT), 360))
-    #     self.size_single = (W, H)
+        self.count = 4
+        self.count_timer = QTimer(self)
+        self.count_timer.timeout.connect(self.update_countdown)
+        self.count_timer.start(1000)
 
-    #     abs_path = QFileInfo(self.args.ref).absoluteFilePath()
-    #     self.player_left.setMedia(QMediaContent(QUrl.fromLocalFile(abs_path)))
-    #     QTimer.singleShot(0, self.player_left.play)  # ✅ 렌더링 이후 재생
+        # 초기 반반 세팅
+        QTimer.singleShot(0, self.equalize_splitter)
 
-    def init_video(self):
-        self.capU = cv2.VideoCapture(self.args.cam)
-        self.capR = cv2.VideoCapture(self.args.ref)
-        if not self.capU.isOpened():
-            QMessageBox.critical(self, "오류", "카메라 열기 실패")
-            return
+    # --- 비율 및 이벤트 처리 메서드 ---
 
-        if not self.capR.isOpened():
-            QMessageBox.critical(self, "오류", "기준 영상 열기 실패")
-            return
+    def equalize_splitter(self):
+        """Splitter의 위젯 크기를 정확히 1:1로 설정"""
+        w = max(2, self.splitter.width())
+        # QSplitter의 sizes를 직접 설정하여 1:1 비율 유지
+        self.splitter.setSizes([w // 2, w - (w // 2)])
 
-        W = int(max(self.capR.get(cv2.CAP_PROP_FRAME_WIDTH), 640))
-        H = int(max(self.capR.get(cv2.CAP_PROP_FRAME_HEIGHT), 360))
-        self.size_single = (W, H)
-
-        abs_path = QFileInfo(self.args.ref).absoluteFilePath()
-        self.player_left.setMedia(QMediaContent(QUrl.fromLocalFile(abs_path)))
-        QTimer.singleShot(0, self.player_left.play)  # ✅ 렌더링 이후 재생
-
-        # --------- 여기 추가 ---------
-        self.precomputed_ref_vecs = []
-        cap_tmp = cv2.VideoCapture(self.args.ref)
-        frame_count = int(cap_tmp.get(cv2.CAP_PROP_FRAME_COUNT))
-
-        for i in range(frame_count):
-            ok, frame = cap_tmp.read()
-            if not ok:
-                break
-            frame = cv2.resize(frame, self.size_single)
-
-            try:
-                kpsR, confR = self.infer_pose(frame)
-                if kpsR is None:
-                    self.precomputed_ref_vecs.append(None)
-                    continue
-                kps_n = normalize_keypoints(kpsR)
-                vec = pose_to_anglevec(kps_n)
-                self.precomputed_ref_vecs.append(vec)
-            except Exception as e:
-                print(f"[warn] ref frame {i} 추론 실패:", e)
-                self.precomputed_ref_vecs.append(None)
-
-        cap_tmp.release()
-        print(f"[info] precomputed_ref_vecs 준비 완료: {len(self.precomputed_ref_vecs)} 프레임")
-        self.player_left.play()
-        self.player_left.pause()
-
-    def load_ref_vectors(self, json_path):
-        try:
-            with open(json_path, "r") as f:
-                ref_data = json.load(f)
-            frames = ref_data.get("frames", [])
-            self.precomputed_ref_vecs = []
-            for i, frame in enumerate(frames):
-                if "kps" not in frame:
-                    continue
-                kps = np.array(frame["kps"])
-                kps_n = normalize_keypoints(kps)
-                vec = pose_to_anglevec(kps_n)
-                self.precomputed_ref_vecs.append(vec)
-        except Exception as e:
-            QMessageBox.critical(self, "JSON 오류", f"정답 포즈 벡터 로딩 실패:\n{e}")
-            self.precomputed_ref_vecs = []
-
-    def start_countdown(self):
-        self.frame_idx = 0
-        self.ema_score = None
-        self.total_points = 100
-        self.lastR = {"kps": None, "conf": None}
-        self.lastU = {"kps": None, "conf": None}
-        self.status_text = ""
-        self.status_color = (255, 255, 255)
-
-        self.capR.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        self.capU.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-        self.countdown_index = 0
-        self.countdown_timer.start(1000)
-        self.timer.start(30)
-
-    def start_video(self):
-        self.timer.start(30)  # 30ms마다 update_frame 호출
-
-    def show_countdown_step(self):
-        if self.countdown_index >= len(self.countdown_texts):
-            # 카운트다운 종료: START 텍스트 유지 후 영상 재생
-            self.countdown_timer.stop()
-            self.display_start_frame()
-            QTimer.singleShot(500, self.resume_video)  # 0.5초 후 재생 시작
-            return
-
-        txt = self.countdown_texts[self.countdown_index]
-        self.countdown_index += 1
-
-        okU, fU = self.capU.read()
-        if not okU:
-            return
-
-        canvas = cv2.resize(fU, self.size_single)
-        canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-
-        self.overlay_text(canvas, txt)
-        self.update_canvas_right(canvas)
-
-    def display_start_frame(self):
-        okU, fU = self.capU.read()
-        if not okU:
-            return
-        canvas = cv2.resize(fU, self.size_single)
-        canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
-        self.overlay_text(canvas, "START")
-        self.update_canvas_right(canvas)
-
-
-    def overlay_text(self, canvas, txt):
-        h, w = canvas.shape[:2]
-        font_scale = h / 300.0
-        thickness = int(font_scale * 2)
-        size = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
-        org = (w // 2 - size[0] // 2, h // 2 + size[1] // 2)
-
-        cv2.putText(canvas, txt, org, cv2.FONT_HERSHEY_SIMPLEX,
-                    font_scale, (0, 0, 0), thickness + 2, cv2.LINE_AA)
-        cv2.putText(canvas, txt, org, cv2.FONT_HERSHEY_SIMPLEX,
-                    font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
-
-
-    def resume_video(self):
-        self.player_left.play()       # ✅ 영상 재생
-        self.start_video()
+    def show_preview_frame(self, video_path):
+        """참고 영상의 첫 프레임을 미리보기에 표시"""
+        cap = cv2.VideoCapture(video_path)
+        ret, frame = cap.read()
+        cap.release()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = frame.shape
+            bytes_per_line = ch * w
+            qt_image = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(qt_image)
+            self.preview_label.setPixmap(
+                pixmap.scaled(self.preview_label.size(),
+                             Qt.KeepAspectRatio,
+                             Qt.SmoothTransformation)
+            )
 
     def update_frame(self):
-        okR, fR = self.capR.read()
-        okU, fU = self.capU.read()
-        if not okR or not okU:
-            self.timer.stop()
+        """웹캠 프레임을 읽어와 cam_label에 표시하고 오버레이 위치를 업데이트"""
+        if self.cap and self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if ret:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame.shape
+                bytes_per_line = ch * w
+                qt_image = QImage(frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(qt_image)
+                self.cam_label.setPixmap(
+                    pixmap.scaled(self.cam_label.size(),
+                                 Qt.KeepAspectRatio,
+                                 Qt.SmoothTransformation)
+                )
+                self.update_overlay_size_and_position() # 프레임이 업데이트될 때마다 오버레이 위치 갱신
+
+    def update_countdown(self):
+        """카운트다운 로직 실행 및 영상 재생 시작"""
+        self.count -= 1
+        if self.count > 0:
+            self.overlay_label.setText(str(self.count))
+        elif self.count == 0:
+            self.overlay_label.setText("START")
+        else:
+            self.overlay_label.hide()
+            self.count_timer.stop()
+            # 비디오 재생 위젯으로 전환
+            self.video_stack.setCurrentWidget(self.video_widget)
+            # 전환 후 레이아웃 비율 재조정 (안정성 확보)
+            QTimer.singleShot(0, self.equalize_splitter)
+            self.play_video()
+
+    def play_video(self):
+        """참고 영상 재생"""
+        abs_path = QFileInfo(self.args.ref).absoluteFilePath()
+        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(abs_path)))
+        self.player.play()
+
+    # 전체 화면 토글 기능은 제거되었습니다.
+    def toggle_fullscreen(self):
+        pass
+
+    def update_overlay_size_and_position(self):
+        """
+        오버레이 라벨의 크기와 위치를 실제 영상 영역에 맞춰 조정하고 글자 크기 동적 조절
+        """
+        # pixmap이 아직 로드되지 않았다면 함수 종료
+        if not self.cam_label.pixmap():
             return
 
-        self.frame_idx += 1
-        do_score = (self.frame_idx % self.args.every == 0)
+        # 웹캠 화면 위젯의 크기
+        label_size = self.cam_label.rect().size()
+        # 현재 표시되는 pixmap의 원본 크기
+        pixmap_size = self.cam_label.pixmap().size()
 
-        # 포즈 추론 및 점수 계산
-        if do_score:
-            try:
-                kpsU, confU = self.infer_pose(fU)
-                self.lastU = {"kps": kpsU, "conf": confU}
-            except Exception as e:
-                print(f"[warn] 추론 실패:", e)
-                return
+        # pixmap이 label에 맞춰 비율을 유지하며 scaled될 때의 실제 크기 계산
+        if pixmap_size.width() / pixmap_size.height() > label_size.width() / label_size.height():
+            # 와이드한 영상: 상하 여백 발생 (Letterbox)
+            scaled_width = label_size.width()
+            scaled_height = int(scaled_width * pixmap_size.height() / pixmap_size.width())
+            x_offset = 0
+            y_offset = (label_size.height() - scaled_height) / 2
+        else:
+            # 세로가 긴 영상: 좌우 여백 발생 (Pillarbox)
+            scaled_height = label_size.height()
+            scaled_width = int(scaled_height * pixmap_size.width() / pixmap_size.height())
+            x_offset = (label_size.width() - scaled_width) / 2
+            y_offset = 0
 
-            if self.lastU["kps"] is not None:
-                KU_use = flip_horizontal_pts(self.lastU["kps"]) if self.mirror else self.lastU["kps"]
-                KU_n = normalize_keypoints(KU_use)
-                vU = pose_to_anglevec(KU_n)
+        # 오버레이 라벨의 위치와 크기를 실제 영상 영역에 맞게 설정
+        self.overlay_label.setGeometry(
+            QRect(
+                int(x_offset),
+                int(y_offset),
+                int(scaled_width),
+                int(scaled_height)
+            )
+        )
 
-                if self.frame_idx >= len(self.precomputed_ref_vecs):
-                    self.timer.stop()
-                    return
-
-                vR = self.precomputed_ref_vecs[self.frame_idx]
-                s, _, _ = frame_score_strict(vR, vU)
-                self.ema_score = s if self.ema_score is None else (
-                    self.ema_score * (1 - self.ema_alpha) + s * self.ema_alpha)
-
-                # 상태 텍스트 결정
-                if s < 50.0:
-                    self.total_points = max(0, self.total_points - 1)
-                    self.status_text = "Bad"
-                    self.status_color = (0, 0, 255)
-                elif s >= 70.0:
-                    self.total_points = min(100, self.total_points + 1)
-                    self.status_text = "Good"
-                    self.status_color = (0, 255, 0)
-                else:
-                    self.status_text = "Neutral"
-                    self.status_color = (128, 128, 128)
-
-        # 포즈 시각화
-        if self.lastU["kps"] is not None and self.lastU["kps"].size > 0:
-            draw_pose(fU, self.lastU["kps"], kps_conf=self.lastU["conf"])
-
-        # 영상 준비
-        canvas_right = cv2.resize(fU, self.size_single)
-        canvas_right = cv2.cvtColor(canvas_right, cv2.COLOR_BGR2RGB)
-
-        # 텍스트 오버레이
-        if self.timer.isActive() and self.ema_score is not None:
-            ch, cw = canvas_right.shape[:2]
-            scale = ch / 400.0
-            thick = int(scale * 2)
-
-            # 점수 텍스트
-            score_txt = f"Score: {self.ema_score:.1f}"
-            sz = cv2.getTextSize(score_txt, cv2.FONT_HERSHEY_SIMPLEX, scale, thick)[0]
-            org = (cw // 2 - sz[0] // 2, int(ch * 0.08))
-            cv2.putText(canvas_right, score_txt, org, cv2.FONT_HERSHEY_SIMPLEX,
-                        scale, (0, 0, 0), thick + 2, cv2.LINE_AA)
-            cv2.putText(canvas_right, score_txt, org, cv2.FONT_HERSHEY_SIMPLEX,
-                        scale, (255, 255, 255), thick, cv2.LINE_AA)
-
-            # 상태 텍스트
-            if self.status_text:
-                sz = cv2.getTextSize(self.status_text, cv2.FONT_HERSHEY_SIMPLEX, scale, thick)[0]
-                org = (cw // 2 - sz[0] // 2, int(ch * 0.90))
-                cv2.putText(canvas_right, self.status_text, org, cv2.FONT_HERSHEY_SIMPLEX,
-                            scale, (0, 0, 0), thick + 4, cv2.LINE_AA)
-                cv2.putText(canvas_right, self.status_text, org, cv2.FONT_HERSHEY_SIMPLEX,
-                            scale, self.status_color, thick, cv2.LINE_AA)
-
-        # 화면에 출력
-        self.update_canvas_right(canvas_right)
+        # 웹캠 화면 높이에 비례하여 폰트 크기 계산 (이제는 실제 영상 높이를 사용)
+        font_size = max(12, int(scaled_height / 8))
+        font = QFont("Arial", font_size)
+        self.overlay_label.setFont(font)
 
 
+    def changeEvent(self, event):
+        """윈도우 상태 변경 감지 (최대화/복원)"""
+        super().changeEvent(event)
+        if event.type() == QEvent.WindowStateChange:
+            # 상태 변경 후 비율 재조정
+            QTimer.singleShot(0, self.equalize_splitter)
 
+    def resizeEvent(self, event):
+        """위젯 리사이즈 시 비율 재조정"""
+        # 리사이즈 후 비율 재조정
+        QTimer.singleShot(0, self.equalize_splitter)
+        super().resizeEvent(event)
 
-    def update_canvas_right(self, canvas):
-        h, w = canvas.shape[:2]
-        qimg = QImage(canvas.data, w, h, 3*w, QImage.Format_RGB888).rgbSwapped()
-        pix = QPixmap.fromImage(qimg)
-        self.scene_right.clear()
-        self.scene_right.setSceneRect(0, 0, w, h)
-        self.scene_right.addPixmap(pix)
-
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-
-    def closeEvent(self, ev):
-        if self.capR: self.capR.release()
-        if self.capU: self.capU.release()
-        if self.writer: self.writer.release()
-        print(f"[final] total score = {self.total_points}")
-        ev.accept()
+    def closeEvent(self, event):
+        """위젯 종료 시 웹캠 및 타이머 해제"""
+        if self.frame_timer:
+            self.frame_timer.stop()
+        if self.cap and self.cap.isOpened():
+            self.cap.release()
+        super().closeEvent(event)
