@@ -10,6 +10,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, pyqtSignal
 
 
+
 class MainPage(QWidget):
     viewRankRequested = pyqtSignal()
     challengeStartRequested = pyqtSignal()
