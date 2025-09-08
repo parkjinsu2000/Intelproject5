@@ -2,14 +2,16 @@ from PyQt5.QtWidgets import QMainWindow, QStackedWidget
 from .main_page import MainPage
 from .rank_page import RankPage
 from .video_select_page import VideoSelectPage
-from .page_enum import PageIndex
+from .page_enum import PageIndex, ModeNumber
 from .pose_score_app import PoseScoreApp
+
 
 class MainWindow(QMainWindow):
     def __init__(self, model, use_half):
         super().__init__()
         self.model = model
         self.use_half = use_half
+        self.mode = ModeNumber.SINGLE
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
@@ -32,19 +34,25 @@ class MainWindow(QMainWindow):
         self.rankPage.backRequested.connect(
             lambda: self.stack.setCurrentIndex(PageIndex.MAIN)
         )
-        self.mainPage.challengeStartRequested.connect(
-            lambda: self.stack.setCurrentIndex(PageIndex.VIDEO_SELECT)
-        )
+        # self.mainPage.challengeStartRequested.connect(
+        #     lambda: self.stack.setCurrentIndex(PageIndex.VIDEO_SELECT)
+        # )
+        self.mainPage.challengeStartRequested.connect(self.on_challenge_start)
+
         self.videoPage.startPoseAppRequested.connect(self.launch_pose_app)
 
         self.resize(1280, 720)
 
-    def on_challenge_start(self):
+    def on_challenge_start(self, mode: ModeNumber):
         """챌린지 선택 버튼 → VideoSelectPage"""
+        self.mode = mode
+        self.mainPage.mode = self.mode
+        print(f"[DEBUG] 선택한 모드: {self.mode}")
         self.stack.setCurrentIndex(PageIndex.VIDEO_SELECT)
 
     def launch_pose_app(self, args):
         pose_app = PoseScoreApp(args, self.model, self.use_half)
+        pose_app.mode = self.mode
         self.stack.addWidget(pose_app)
         self.stack.setCurrentWidget(pose_app)
 

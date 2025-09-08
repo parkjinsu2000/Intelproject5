@@ -17,7 +17,7 @@ from core.model_loader import make_infer
 from core.pose_utils import (
     normalize_keypoints, pose_to_anglevec, frame_score_strict
 )
-
+from pages.page_enum import ModeNumber
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtCore import pyqtSignal
 
@@ -40,6 +40,7 @@ class PoseScoreApp(QWidget):
         self.model = model
         self.use_half = use_half
         self.cap_index = 0
+        self.mode = ModeNumber.SINGLE
         self.setMinimumSize(400, 300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
