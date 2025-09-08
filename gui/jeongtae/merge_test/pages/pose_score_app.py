@@ -17,7 +17,7 @@ from core.model_loader import make_infer
 from core.pose_utils import (
     normalize_keypoints, pose_to_anglevec, frame_score_strict
 )
-from pages.page_enum import ModeNumber
+from pages.enums import ModeNumber
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtCore import pyqtSignal
 

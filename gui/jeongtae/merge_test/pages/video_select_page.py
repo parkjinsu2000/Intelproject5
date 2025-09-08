@@ -1,7 +1,7 @@
 import os
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QListWidget, QPushButton,
-    QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QSplitter
+    QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QSplitter, QListWidgetItem
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
@@ -10,9 +10,10 @@ from PyQt5.QtGui import QFont
 from types import SimpleNamespace
 from .pose_score_app import PoseScoreApp
 import torch
-from .page_enum import PageIndex
-
+from .enums import PageIndex
 from tools.video_to_json import create_json_from_video
+
+
 
 # QVideoWidget 상속 → sizeHint 무시해 레이아웃 비율에 영향 못 주게
 class MyVideoWidget(QVideoWidget):
@@ -109,16 +110,57 @@ class VideoSelectPage(QWidget):
         self.video_widget.updateGeometry()
 
     def load_videos(self):
-        os.makedirs(self.video_dir, exist_ok=True)
+        """rank_video_list.txt에 등록된 영상들을 플레이 횟수 순으로 불러오기"""
         self.video_list.clear()
-        for fname in sorted(os.listdir(self.video_dir)):
-            if fname.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
-                self.video_list.addItem(fname)
+
+        rank_file = os.path.join("resources", "DB", "rank", "rank_video_list.txt")
+        details_dir = os.path.join("resources", "DB", "details")
+
+        if not os.path.exists(rank_file):
+            print(f"[WARN] {rank_file} 파일이 존재하지 않습니다.")
+            return
+
+        os.makedirs(details_dir, exist_ok=True)
+
+        videos = []
+        with open(rank_file, "r", encoding="utf-8") as f:
+            for line in f:
+                video_name = line.strip()
+                if not video_name:
+                    continue
+
+                # 상세 기록 파일 경로
+                details_file = os.path.join(details_dir, f"{video_name}.txt")
+                if not os.path.exists(details_file):
+                    with open(details_file, "w", encoding="utf-8") as df:
+                        df.write("")
+
+                # 플레이 횟수 = 줄 개수
+                with open(details_file, "r", encoding="utf-8") as df:
+                    play_count = sum(1 for _ in df)
+
+                # 실제 영상 파일 존재 여부 확인
+                video_path = os.path.join(self.video_dir, video_name)
+                if os.path.exists(video_path):
+                    videos.append((video_name, play_count))
+                else:
+                    print(f"[WARN] 등록된 영상 파일이 존재하지 않음: {video_path}")
+
+        # 플레이 횟수 내림차순 정렬
+        videos.sort(key=lambda x: x[1], reverse=True)
+
+        # 리스트 위젯에 추가 (표시 텍스트와 실제 데이터 분리)
+        for video_name, play_count in videos:
+            item = QListWidgetItem(f"{video_name}  ({play_count}회)")
+            item.setData(Qt.UserRole, video_name)   # 실제 파일명 저장
+            self.video_list.addItem(item)
+
 
     def select_video(self, item):
-        self.ref_path = os.path.join(self.video_dir, item.text())
-        video_name, _ = os.path.splitext(item.text())
-        json_fname = video_name + ".json"
+        video_name = item.data(Qt.UserRole)   # 실제 파일명 가져오기
+        self.ref_path = os.path.join(self.video_dir, video_name)
+
+        json_fname = os.path.splitext(video_name)[0] + ".json"
         json_full_path = os.path.join(self.video_dir, json_fname)
 
         abs_path = QFileInfo(self.ref_path).absoluteFilePath()
@@ -130,7 +172,7 @@ class VideoSelectPage(QWidget):
             print(f"JSON 파일이 감지되었습니다: {self.json_path}")
         else:
             print(f"JSON 파일을 찾을 수 없습니다: {json_full_path}")
-            # ✅ JSON 자동 생성
+            # JSON 자동 생성
             model_path = "yolov8n-pose.pt"
             self.json_path = json_full_path
             create_json_from_video(
