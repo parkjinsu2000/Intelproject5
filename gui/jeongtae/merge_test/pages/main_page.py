@@ -5,13 +5,15 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap
+from .page_enum import ModeNumber
 
 class MainPage(QWidget):
     viewRankRequested = pyqtSignal()
-    challengeStartRequested = pyqtSignal()
+    challengeStartRequested = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
+        self.mode = ModeNumber.SINGLE
 
         # 레이아웃
         self.horizontalLayout = QHBoxLayout(self)
@@ -26,8 +28,11 @@ class MainPage(QWidget):
         self.main_right_layout = QVBoxLayout()
         self.main_right_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        self.select_challenge_pushButton = QPushButton("챌린지 선택")
-        self.main_right_layout.addWidget(self.select_challenge_pushButton)
+        self.select_challenge_single_pushButton = QPushButton("챌린지 선택 (싱글 플레이어)")
+        self.main_right_layout.addWidget(self.select_challenge_single_pushButton)
+
+        self.select_challenge_multiple_pushButton = QPushButton("챌린지 선택 (멀티 플레이어)")
+        self.main_right_layout.addWidget(self.select_challenge_multiple_pushButton)
 
         self.view_rank_pushButton = QPushButton("랭킹 보기")
         self.main_right_layout.addWidget(self.view_rank_pushButton)
@@ -48,7 +53,12 @@ class MainPage(QWidget):
 
         # 시그널 연결
         self.view_rank_pushButton.clicked.connect(self.viewRankRequested.emit)
-        self.select_challenge_pushButton.clicked.connect(self.challengeStartRequested.emit)
+        self.select_challenge_single_pushButton.clicked.connect(
+            lambda: self.challengeStartRequested.emit(ModeNumber.SINGLE)
+        )
+        self.select_challenge_multiple_pushButton.clicked.connect(
+            lambda: self.challengeStartRequested.emit(ModeNumber.MULTIPLE)
+        )
 
         # 디렉터리 자동 생성
         img_dir = "resources/images"
