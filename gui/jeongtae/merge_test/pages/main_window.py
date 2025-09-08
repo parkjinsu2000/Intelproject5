@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QMainWindow, QStackedWidget
 from .main_page import MainPage
 from .rank_page import RankPage
 from .video_select_page import VideoSelectPage
-from .page_enum import PageIndex, ModeNumber
+from .enums import PageIndex, ModeNumber
 from .pose_score_app import PoseScoreApp
 
 

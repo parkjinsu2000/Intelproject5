@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap
-from .page_enum import ModeNumber
+from .enums import ModeNumber
 
 class MainPage(QWidget):
     viewRankRequested = pyqtSignal()
