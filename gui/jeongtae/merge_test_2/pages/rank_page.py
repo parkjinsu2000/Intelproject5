@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from ..config import DirPath, FileName
+from config import DirPath, FileName
 
 class RankPage(QWidget):
     backRequested = pyqtSignal()
@@ -50,7 +50,8 @@ class RankPage(QWidget):
 
         # -------- 시그널 연결 --------
         self.go_to_main_PB.clicked.connect(self.on_back_to_main)
-        self.video_list_listWidget.itemClicked.connect(self.on_video_selected)
+        self.video_list_listWidget.itemClicked.connect(self.on_video_selected_ref)   # 기준 영상
+        self.player_video_listWidget.itemClicked.connect(self.on_video_selected_user) # 사용자 영상
 
         # -------- 파일 처리 --------
         self.init_rank_db()
@@ -101,8 +102,8 @@ class RankPage(QWidget):
             item.setData(Qt.UserRole, video_name)  # 실제 이름 저장
             self.video_list_listWidget.addItem(item)
 
-    # 영상 선택 시: 상세 기록 + 영상 재생
-    def on_video_selected(self, item):
+    # 기준 영상 선택 시
+    def on_video_selected_ref(self, item):
         video_name = item.data(Qt.UserRole)
         details_file = os.path.join(DirPath.DETAILS_DIR, f"{video_name}.txt")
 
@@ -111,22 +112,68 @@ class RankPage(QWidget):
             with open(details_file, "w", encoding="utf-8") as f:
                 f.write("")
 
-        # 좌측 하단 리스트 갱신
+        # 좌측 하단 리스트 갱신 (사용자 영상 기록)
         self.player_video_listWidget.clear()
         with open(details_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
-                    self.player_video_listWidget.addItem(line)
+                    item = QListWidgetItem(line)
+                    item.setData(Qt.UserRole, line)  # 사용자 영상 파일명
+                    self.player_video_listWidget.addItem(item)
 
-        # 영상 재생
-        video_path = os.path.join(DirPath.BASE_VIDEO_DIR, video_name)
+        # 기준 영상 재생 (resources/videos/ref)
+        video_path = os.path.join(DirPath.REF_VIDEO_DIR, video_name)
         if not os.path.exists(video_path):
-            print(f"[ERROR] 파일이 존재하지 않음: {video_path}")
+            print(f"[ERROR] 기준 영상 파일이 존재하지 않음: {video_path}")
             return
         url = QUrl.fromLocalFile(video_path)
         self.media_player.setMedia(QMediaContent(url))
+        self.media_player.stop()
         self.media_player.play()
+
+    # 사용자 영상 선택 시
+    def on_video_selected_user(self, item):
+        user_video_name = item.data(Qt.UserRole)
+
+        # 사용자 영상 경로
+        video_path = os.path.join(DirPath.USER_VIDEO_DIR, user_video_name)
+        if not os.path.exists(video_path):
+            print(f"[ERROR] 사용자 영상 파일이 존재하지 않음: {video_path}")
+            return
+
+        url = QUrl.fromLocalFile(video_path)
+        self.media_player.setMedia(QMediaContent(url))
+        self.media_player.stop()
+        self.media_player.play()
+
+
+    # # 영상 선택 시: 상세 기록 + 영상 재생
+    # def on_video_selected(self, item):
+    #     video_name = item.data(Qt.UserRole)
+    #     details_file = os.path.join(DirPath.DETAILS_DIR, f"{video_name}.txt")
+
+    #     # 상세 기록 파일이 없으면 생성
+    #     if not os.path.exists(details_file):
+    #         with open(details_file, "w", encoding="utf-8") as f:
+    #             f.write("")
+
+    #     # 좌측 하단 리스트 갱신
+    #     self.player_video_listWidget.clear()
+    #     with open(details_file, "r", encoding="utf-8") as f:
+    #         for line in f:
+    #             line = line.strip()
+    #             if line:
+    #                 self.player_video_listWidget.addItem(line)
+
+    #     # 영상 재생
+    #     video_path = os.path.join(DirPath.REF_VIDEO_DIR, video_name)
+    #     if not os.path.exists(video_path):
+    #         print(f"[ERROR] 파일이 존재하지 않음: {video_path}")
+    #         return
+    #     url = QUrl.fromLocalFile(video_path)
+    #     self.media_player.setMedia(QMediaContent(url))
+    #     self.media_player.play()
 
     # rank_video_list.txt에 추가
     def file_write(self, video_name):

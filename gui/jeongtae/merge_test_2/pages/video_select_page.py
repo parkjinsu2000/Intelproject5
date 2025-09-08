@@ -12,7 +12,7 @@ from .pose_score_app import PoseScoreApp
 import torch
 from .enums import PageIndex
 from tools.video_to_json import create_json_from_video
-from ..config import DirPath, FileName
+from config import DirPath, FileName
 
 
 # QVideoWidget 상속 → sizeHint 무시해 레이아웃 비율에 영향 못 주게
@@ -27,7 +27,7 @@ class VideoSelectPage(QWidget):
         self.stacked_widget = stacked_widget
         self.model = model
         self.use_half = use_half
-        self.video_dir = "resources/videos"
+        self.video_dir = DirPath.REF_VIDEO_DIR
         self.ref_path = None
         self.json_path = None
 
@@ -140,7 +140,7 @@ class VideoSelectPage(QWidget):
                     play_count = sum(1 for _ in df)
 
                 # 실제 영상 파일 존재 여부 확인
-                video_path = os.path.join(DirPath.BASE_VIDEO_DIR, video_name)
+                video_path = os.path.join(DirPath.REF_VIDEO_DIR, video_name)
                 if os.path.exists(video_path):
                     videos.append((video_name, play_count))
                 else:

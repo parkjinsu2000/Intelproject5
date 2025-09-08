@@ -21,9 +21,9 @@ class MainWindow(QMainWindow):
         self.rankPage = RankPage()
         self.videoPage = VideoSelectPage(self.stack, self.model, self.use_half)
 
-        self.stack.addWidget(self.mainPage)       # PageIndex.MAIN
-        self.stack.addWidget(self.rankPage)       # PageIndex.RANK
-        self.stack.addWidget(self.videoPage)      # PageIndex.VIDEO_SELECT
+        self.stack.addWidget(self.mainPage)                     # PageIndex.MAIN
+        self.stack.addWidget(self.rankPage)                     # PageIndex.RANK
+        self.stack.addWidget(self.videoPage)                    # PageIndex.VIDEO_SELECT
 
         self.stack.setCurrentIndex(PageIndex.MAIN)
 
@@ -40,7 +40,8 @@ class MainWindow(QMainWindow):
             lambda: self.stack.setCurrentIndex(PageIndex.MAIN)
         )
         self.mainPage.challengeStartRequested.connect(self.on_challenge_start)
-
+        self.mainPage.newChallengeVideoAdded.connect(self.videoPage.load_videos)
+        self.mainPage.newChallengeVideoAdded.connect(self.rankPage.load_ranking)
         self.videoPage.startPoseAppRequested.connect(self.launch_pose_app)
 
     def on_challenge_start(self, mode: ModeNumber):
