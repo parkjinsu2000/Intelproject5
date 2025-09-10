@@ -6,55 +6,62 @@ from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtCore import *
 
 
-import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import QUrl, Qt
-
-
-import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QStackedLayout
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import QUrl, Qt
-
-
 class MainPageViewPanelPage(QWidget):
     def __init__(self, video_path=None, image_path=None, screen_index=0):
         super().__init__()
 
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.image_path = image_path
 
-        # 비디오 출력 위젯
-        self.video_widget = QVideoWidget(self)
-        self.layout().addWidget(self.video_widget)
+        # 메인 레이아웃
+        self.mainLayoutV = QVBoxLayout(self)
+        self.mainLayoutV.setContentsMargins(0, 0, 0, 0)
+
+        # 그래픽스 뷰/씬
+        self.scene = QGraphicsScene()
+        self.view = QGraphicsView(self.scene)
+        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.setFrameStyle(0)
+        self.mainLayoutV.addWidget(self.view)
+
+        # 비디오 아이템
+        self.video_item = QGraphicsVideoItem()
+        self.video_item.setAspectRatioMode(Qt.KeepAspectRatioByExpanding)
+        self.scene.addItem(self.video_item)
+
+        # 이미지 아이템
+        self.image_item = None
+        if image_path:
+            pixmap = QPixmap(image_path)
+            self.image_item = self.scene.addPixmap(pixmap)
+            self.image_item.setZValue(1)  # 영상 위에 오도록
+            self.image_item.setTransformationMode(Qt.SmoothTransformation)
 
         # 플레이어
         self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
-        self.player.setVideoOutput(self.video_widget)
-
-        self.top_logo_label = QLabel(self)
-
-        # 이미지 로드
-        if image_path:
-            pixmap = QPixmap(image_path)
-            self.top_logo_label.setPixmap(pixmap)  # 원본 크기 그대로
-            self.top_logo_label.adjustSize()       # 라벨 크기를 이미지 크기에 맞춤
-            self.top_logo_label.move(
-                (self.width() - self.top_logo_label.width()) // 2,  # 화면 중앙 정렬 (가로)
-                10  # 상단에서 10px 아래 고정
-            )
-            self.top_logo_label.raise_()           # 비디오 위에 보이도록
-            self.top_logo_label.show()
-        else:
-            self.top_logo_label.hide()
+        self.player.setVideoOutput(self.video_item)
 
         self.init_video(video_path)
         self.set_screen(screen_index)
+
+        # 창 뜬 직후 비디오/이미지 크기 세팅
+        QTimer.singleShot(0, self.fit_scene)
+        # QTimer.singleShot(0, self.set_title_image)
+
+    def fit_scene(self):
+        rect = QRectF(self.view.viewport().rect())
+        # 비디오를 뷰포트 전체로 맞춤
+        self.scene.setSceneRect(rect)
+        self.video_item.setSize(rect.size())
+
+        # 이미지 중앙 상단 배치 (원본 크기 그대로)
+        if self.image_item:
+            pixmap = QPixmap(self.image_path)  # 원본 사이즈 유지
+            self.image_item.setPixmap(pixmap)
+
+            x = (rect.width() - pixmap.width()) / 2  # 가로 중앙
+            y = 0                                    # 세로 상단
+            self.image_item.setPos(x, y)
 
     def init_video(self, video_path):
         if video_path:
@@ -63,10 +70,9 @@ class MainPageViewPanelPage(QWidget):
             self.player.play()
 
     def set_screen(self, screen_index):
-        screens = QApplication.screens()
+        screens = QGuiApplication.screens()
         if len(screens) > screen_index:
-            geo = screens[screen_index].geometry()
-            self.setGeometry(geo)
+            self.setGeometry(screens[screen_index].geometry())
         else:
             print("지정한 모니터가 없음 → 기본 모니터 사용")
 
@@ -74,12 +80,9 @@ class MainPageViewPanelPage(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # 경로 수정해서 테스트하세요
     video_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/background_video_large.mp4"
-    image_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/title_image_1.png"
+    image_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/title_image_4.png"
 
     window = MainPageViewPanelPage(video_path=video_file, image_path=image_file, screen_index=0)
-    window.showMaximized()  # 전체화면에 맞게 표시
-    # window.showFullScreen()
-
+    window.showMaximized()
     sys.exit(app.exec_())
