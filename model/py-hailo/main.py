@@ -10,6 +10,10 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 import hailo
 
+# temp
+import sys
+original_argv = sys.argv[:]
+
 # Hailo-Apps imports
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_numpy_from_buffer, get_caps_from_pad
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
@@ -171,12 +175,38 @@ def main():
     cv2.setUseOptimized(True); cv2.setNumThreads(0)
 
     # --- 1. Pre-process Reference Video ---
+    # ===============================
+    # TODO: Reference preprocessing cache
+    # - Preprocessed keypoints are saved into npz
+    # - If npz exists for the same reference video, load it instead of recomputing
+    # - If user forces re-preprocessing, overwrite npz
+    # ===============================
+
+    # ===============================
+    # TODO: Input handling restoration
+    # - Restore original input argument parsing (video file vs webcam index)
+    # - args.source should determine input type
+    # - Keep preprocessing independent from input (preprocessing uses reference video only)
+    # ===============================
+
     print("[info] Pre-processing reference video...")
-    import sys
-    original_argv = sys.argv
-    sys.argv = [original_argv[0], '--input', args.ref] # Set input for the app
-    ref_app = GStreamerPoseEstimationApp(ref_callback, app_state)
-    ref_app.run()
+
+    cap_ref = cv2.VideoCapture(args.ref)
+    if not cap_ref.isOpened():
+        raise RuntimeError(f"Cannot open reference video: {args.ref}")
+
+    frame_idx = 0
+    while True:
+        ok, frame = cap_ref.read()
+        if not ok:
+            break
+
+        poses = {}
+        app_state.ref_tracks_all_frames.append(poses)
+
+        frame_idx += 1
+
+    cap_ref.release()
     print(f"[info] Pre-processing finished. {len(app_state.ref_tracks_all_frames)} frames processed.")
 
     # --- 2. Setup for User Video ---
@@ -229,7 +259,7 @@ def main():
     sys.argv = [original_argv[0], '--input', args.source] # Set input for the user app
     user_app = GStreamerPoseEstimationApp(user_callback, app_state)
     sys.argv = original_argv # Restore original arguments
-    
+
     # The user_app.run() will block, so we need a separate thread/loop to display frames
     # For simplicity, we'll rely on the pipeline being fast and just show the last frame
     # A more robust solution would use a separate display thread.

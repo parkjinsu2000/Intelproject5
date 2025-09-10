@@ -1,7 +1,8 @@
-
 import numpy as np
 from numpy.linalg import norm
 from settings import ANGLE_TRIPLES, K_STRICT, MARGIN, L_HP, R_HP, L_SH, R_SH
+
+#NOTE: can I replace these np operations into GPU?
 
 def angle_of(a,b,c):
     if a is None or b is None or c is None: return np.nan
