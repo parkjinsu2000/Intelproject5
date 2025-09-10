@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import cv2
+import os
+import datetime
+from config import DirPath
+from .enums import ModeNumber
+
 import numpy as np
 import cv2
 from PyQt5.QtWidgets import (
@@ -25,7 +31,7 @@ class BasePoseApp(QWidget):
     goMainRequested = pyqtSignal()
     goRankRequested = pyqtSignal()
 
-    def __init__(self, args):
+    def __init__(self, args, model, use_half, mode, user_name, user_id, video_title):
         super().__init__()
         self.args = args
         self.setMinimumSize(400, 300)
@@ -36,6 +42,12 @@ class BasePoseApp(QWidget):
         self.game_started = False
         self.game_over = False
         self.count = 6 # 카운트다운 시작 값
+
+        self.mode = mode
+        self.user_name = user_name
+        self.user_id = user_id
+        self.video_title = video_title
+        self.video_writer = None
 
         # --- 1. 왼쪽 화면 (미리보기/재생 전환) 설정 ---
         self.preview_label = QLabel()
@@ -106,6 +118,28 @@ class BasePoseApp(QWidget):
 
         # 웹캠, 비디오, 스플리터 초기화는 상속 클래스에서 호출
         QTimer.singleShot(0, self.equalize_splitter)
+
+    def start_recording(self):
+        # 저장 경로 결정
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if self.mode == ModeNumber.SINGLE:
+            save_dir = DirPath.USER_VIDEO_DIR
+        else:
+            save_dir = DirPath.USER_MULTI_VIDEO_DIR
+        os.makedirs(save_dir, exist_ok=True)
+
+        filename = f"{self.video_title}_{self.user_name}_{self.user_id}_{timestamp}.mp4"
+        save_path = os.path.join(save_dir, filename)
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.video_writer = cv2.VideoWriter(save_path, fourcc, 30.0, (1280, 720))
+        print(f"[INFO] Recording started: {save_path}")
+
+    def stop_recording(self):
+        if self.video_writer:
+            self.video_writer.release()
+            self.video_writer = None
+            print("[INFO] Recording stopped")
 
     def init_webcam(self):
         """웹캠을 초기화하고 프레임 읽기 타이머를 시작합니다."""
@@ -182,35 +216,96 @@ class BasePoseApp(QWidget):
             self.game_over()
 
     def update_frame(self):
-        """웹캠에서 프레임을 읽어와 화면에 표시합니다. 상속 클래스에서 포즈 감지 및 점수 계산 로직을 추가합니다."""
+        """웹캠 프레임을 갱신하고, 피드백/카운트다운/녹화를 처리"""
+        if self.game_over:
+            self.display_final_score()
+            return
+
         if self.cap and self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if not ret or frame is None:
-                print("Error: 웹캠에서 프레임을 읽어올 수 없습니다. 재연결을 시도합니다.")
-                self.cam_label.setText("웹캠에서 프레임을 읽어올 수 없습니다. 재연결 중...")
-                self.init_webcam()
-                return
+            try:
+                ret, frame = self.cap.read()
+                if not ret or frame is None:
+                    print("Error: 웹캠에서 프레임을 읽어올 수 없습니다. 재연결을 시도합니다.")
+                    self.cam_label.setText("웹캠에서 프레임을 읽어올 수 없습니다. 재연결 중...")
+                    self.init_webcam()
+                    return
 
-            # 웹캠 프레임을 좌우로 반전시킵니다 (거울 효과).
-            frame = cv2.flip(frame, 1)
+                # BGR → RGB
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
 
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = frame_rgb.shape
+                # QImage로 변환
+                qt_image = QImage(frame_rgb.data, w, h, ch * w, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(qt_image)
 
-            qt_image = QImage(frame_rgb.data, w, h, ch * w, QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(qt_image)
+                # 웹캠 QLabel에 출력
+                self.cam_label.setPixmap(
+                    pixmap.scaled(
+                        self.cam_label.size(),
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                )
 
-            self.cam_label.setPixmap(
-                pixmap.scaled(self.cam_label.size(),
-                             Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
-            )
+                # ---- 피드백 라벨 위치/스타일 조정 ----
+                self.feedback_label.setGeometry(
+                    10, 10,
+                    int(self.cam_label.width() / 1.5),
+                    int(self.cam_label.height() / 3)
+                )
+                self.feedback_label.setFont(
+                    QFont("Arial", int(self.cam_label.height() / 15), QFont.Bold)
+                )
 
-            # 오버레이 라벨 위치를 웹캠 라벨 크기에 맞게 조정
-            if not self.overlay_label.isHidden():
-                self.overlay_label.setGeometry(self.cam_label.rect())
-                overlay_font_size = int(self.cam_label.height() / 5)
-                self.overlay_label.setFont(QFont("Arial", overlay_font_size, QFont.Bold))
+                # ---- 카운트다운 표시 ----
+                if not self.overlay_label.isHidden():
+                    self.overlay_label.setGeometry(self.cam_label.rect())
+                    overlay_font_size = int(self.cam_label.height() / 5)
+                    self.overlay_label.setFont(QFont("Arial", overlay_font_size, QFont.Bold))
+
+                # ---- 녹화 (OpenCV VideoWriter) ----
+                if self.video_writer:
+                    # Qt Pixmap → OpenCV BGR 프레임 변환
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
+                    # 피드백 텍스트 오버레이도 저장되도록 직접 그림
+                    if self.feedback:
+                        color = (0, 255, 0) if self.feedback == "PERFECT" else \
+                                (0, 255, 255) if self.feedback == "GOOD" else \
+                                (0, 0, 255)
+                        cv2.putText(
+                            frame_bgr,
+                            self.feedback,
+                            (50, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            2.0,
+                            color,
+                            4,
+                            cv2.LINE_AA
+                        )
+
+                    # 카운트다운도 저장
+                    if not self.overlay_label.isHidden() and self.overlay_label.text():
+                        cv2.putText(
+                            frame_bgr,
+                            self.overlay_label.text(),
+                            (frame_bgr.shape[1] // 2 - 100, frame_bgr.shape[0] // 2),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            3.0,
+                            (0, 0, 255),
+                            6,
+                            cv2.LINE_AA
+                        )
+
+                    self.video_writer.write(frame_bgr)
+
+            except Exception as e:
+                print(f"Exception during frame processing: {e}")
+                self.cam_label.setText(f"처리 중 오류 발생: {e}")
+                self.cam_label.setStyleSheet("background-color: black; color: white; font-size: 20px;")
+                if self.frame_timer:
+                    self.frame_timer.stop()
+
     
     def game_over(self):
         """게임 종료 시 호출될 메서드. 상속 클래스에서 오버라이드합니다."""
@@ -220,7 +315,10 @@ class BasePoseApp(QWidget):
             self.score_timer.stop()
         if self.cap and self.cap.isOpened():
             self.cap.release()
+        # ✅ 게임 종료 시 녹화 중지
+        self.stop_recording()
         print("게임이 종료되었습니다. 최종 점수를 표시합니다.")
+
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -250,3 +348,6 @@ class BasePoseApp(QWidget):
             self.overlay_label.hide()
             self.game_started = True
             self.count_timer.stop()
+            # ✅ 카운트다운이 끝나면 녹화 시작
+            self.start_recording()
+
