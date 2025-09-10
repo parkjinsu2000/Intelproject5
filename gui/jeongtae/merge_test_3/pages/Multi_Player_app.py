@@ -27,6 +27,8 @@ from core.pose_utils import (
     normalize_keypoints, pose_to_anglevec, frame_score_strict, draw_pose
 )
 
+from .enums import ModeNumber
+
 # YOLO 모델 설정
 MODEL_PATH_DEFAULT = "yolov8m-pose.pt"
 DETECT_CONF_THRES = 0.25
@@ -46,8 +48,8 @@ class MultiPlayerApp(BasePoseApp):
     goRankRequested = pyqtSignal()
     updateDisplaySignal = pyqtSignal()
 
-    def __init__(self, args, model, use_half, player_count=2):
-        super().__init__(args)
+    def __init__(self, args, model, use_half, user_name, user_id, video_title):
+        super().__init__(args, model, use_half, ModeNumber.MULTIPLE, user_name, user_id, video_title)
         
         self.game_over_flag = False
         self.model = model

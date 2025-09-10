@@ -1,3 +1,4 @@
+import os
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
 from .main_page import MainPage
 from .rank_page import RankPage
@@ -6,6 +7,7 @@ from .enums import PageIndex, ModeNumber
 # from .pose_score_app import PoseScoreApp
 from .Single_Player_app import SinglePlayerApp
 from .Multi_Player_app import MultiPlayerApp
+from .user_video_page import UserVideoPage
 
 class MainWindow(QMainWindow):
     def __init__(self, model, use_half):
@@ -21,10 +23,12 @@ class MainWindow(QMainWindow):
         self.mainPage = MainPage()
         self.rankPage = RankPage()
         self.videoPage = VideoSelectPage(self.stack, self.model, self.use_half)
+        self.userVideoPage = UserVideoPage()
 
         self.stack.addWidget(self.mainPage)                     # PageIndex.MAIN
         self.stack.addWidget(self.rankPage)                     # PageIndex.RANK
         self.stack.addWidget(self.videoPage)                    # PageIndex.VIDEO_SELECT
+        self.stack.addWidget(self.userVideoPage)                # PageIndex.USER_VIDEO_PAGE
 
         self.stack.setCurrentIndex(PageIndex.MAIN)
 
@@ -43,7 +47,15 @@ class MainWindow(QMainWindow):
         self.mainPage.challengeStartRequested.connect(self.on_challenge_start)
         self.mainPage.newChallengeVideoAdded.connect(self.videoPage.load_videos)
         self.mainPage.newChallengeVideoAdded.connect(self.rankPage.load_ranking)
+
+        self.mainPage.viewUserVideoRequested.connect(
+            lambda: self.stack.setCurrentIndex(PageIndex.USER_VIDEO_PAGE)
+        )
         self.videoPage.startPoseAppRequested.connect(self.launch_pose_app)
+        
+        self.userVideoPage.backRequested.connect(
+            lambda: self.stack.setCurrentIndex(PageIndex.MAIN)
+        )
 
     def on_challenge_start(self, mode: ModeNumber):
         """챌린지 선택 버튼 → VideoSelectPage"""
@@ -55,25 +67,41 @@ class MainWindow(QMainWindow):
         """
         선택된 모드에 따라 적절한 포즈 앱 인스턴스를 생성하고 실행합니다.
         """
+        user_id = self.mainPage.ID_lineEdit.text().strip()
+        user_name = self.mainPage.Name_lineEdit.text().strip()
+
+        if not user_id or not user_name:
+            QMessageBox.warning(self, "입력 오류", "아이디와 이름을 모두 입력해야 합니다.")
+            return
+
+        # VideoSelectPage 에서 ref_path 로 선택된 영상 파일명 추출
+        video_title = os.path.splitext(os.path.basename(self.videoPage.ref_path))[0] \
+                    if self.videoPage.ref_path else "untitled"
+
         if self.mode == ModeNumber.SINGLE:
-            pose_app = SinglePlayerApp(args, self.model, self.use_half)
+            pose_app = SinglePlayerApp(
+                args, self.model, self.use_half,
+                user_name=user_name,
+                user_id=user_id,
+                video_title=video_title
+            )
             print("싱글 플레이어 모드 시작...")
 
         elif self.mode == ModeNumber.MULTIPLE:
-            # TODO: 플레이어 수를 결정하는 로직을 추가해야 합니다.
-            # 예: 사용자에게 플레이어 수를 입력받거나 기본값을 사용합니다.
-            player_count = 2 # 기본 2명으로 가정
-            pose_app = MultiPlayerApp(args, self.model, self.use_half, player_count=player_count)
+            pose_app = MultiPlayerApp(
+                args, self.model, self.use_half,
+                user_name=user_name,
+                user_id=user_id,
+                video_title=video_title
+            )
             print("멀티 플레이어 모드 시작...")
 
         else:
             QMessageBox.warning(self, "오류", "알 수 없는 모드입니다.")
             return
 
-        # QStackedWidget에 새 페이지를 추가하고 화면을 전환합니다.
         self.stack.addWidget(pose_app)
         self.stack.setCurrentWidget(pose_app)
 
-        # 게임 종료 후 메인/랭킹 페이지로 돌아가는 시그널 연결
         pose_app.goMainRequested.connect(lambda: self.stack.setCurrentIndex(PageIndex.MAIN))
         pose_app.goRankRequested.connect(lambda: self.stack.setCurrentIndex(PageIndex.RANK))

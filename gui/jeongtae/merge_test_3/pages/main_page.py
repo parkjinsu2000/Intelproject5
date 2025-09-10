@@ -1,3 +1,8 @@
+import sys
+from PyQt5.QtWidgets import QApplication
+
+
+
 import os
 import shutil
 from PyQt5.QtWidgets import (
@@ -13,6 +18,7 @@ class MainPage(QWidget):
     viewRankRequested = pyqtSignal()
     challengeStartRequested = pyqtSignal(int)
     newChallengeVideoAdded = pyqtSignal()
+    viewUserVideoRequested = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -43,6 +49,10 @@ class MainPage(QWidget):
         self.add_new_challenge_video_pushButton = QPushButton("새 챌린지 영상 등록")
         self.main_right_layout.addWidget(self.add_new_challenge_video_pushButton)
 
+        self.view_user_video_pushButton = QPushButton("내 녹화 영상 보기")
+        self.main_right_layout.addWidget(self.view_user_video_pushButton)
+
+
         self.ID_lineEdit = QLineEdit()
         self.ID_lineEdit.setPlaceholderText("아이디를 입력하세요")
         self.main_right_layout.addWidget(self.ID_lineEdit)
@@ -66,6 +76,7 @@ class MainPage(QWidget):
         self.select_challenge_multiple_pushButton.clicked.connect(
             lambda: self.challengeStartRequested.emit(ModeNumber.MULTIPLE)
         )
+        self.view_user_video_pushButton.clicked.connect(self.viewUserVideoRequested.emit)
 
         # 디렉터리 자동 생성
         os.makedirs(DirPath.IMAGE_DIR, exist_ok=True)
@@ -143,3 +154,14 @@ class MainPage(QWidget):
     def resizeEvent(self, e):
         super().resizeEvent(e)
         self._update_label_pixmap()
+
+
+
+def main():
+    app = QApplication(sys.argv)
+    window = MainPage()
+    window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

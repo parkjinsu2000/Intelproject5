@@ -23,13 +23,16 @@ from core.pose_utils import (
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtCore import pyqtSignal
 
+from .enums import ModeNumber
+
 class SinglePlayerApp(BasePoseApp):
     """
     BasePoseApp을 상속받아 싱글 플레이어 모드 로직을 구현한 클래스.
     """
-    def __init__(self, args, model, use_half):
+    def __init__(self, args, model, use_half, user_name, user_id, video_title):
         # 부모 클래스의 생성자를 호출하여 기본 UI를 설정합니다.
-        super().__init__(args)
+        super().__init__(args, model, use_half, ModeNumber.SINGLE, user_name, user_id, video_title)
+
         
         self.model = model
         self.use_half = use_half
