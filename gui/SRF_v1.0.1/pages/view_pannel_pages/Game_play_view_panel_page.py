@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor, QPalette
 
-class DoublePanelApp(QWidget):
+class GamePlayViewPanelPage(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -53,6 +53,6 @@ class DoublePanelApp(QWidget):
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = DoublePanelApp()
+    ex = GamePlayViewPanelPage()
     ex.show()
     sys.exit(app.exec_())
