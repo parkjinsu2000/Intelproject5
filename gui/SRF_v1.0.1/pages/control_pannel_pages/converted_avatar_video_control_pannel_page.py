@@ -13,7 +13,7 @@ from background_video_play_control_pannel import BackgroundVideoPlayControlPanne
 """
 
 class ConvertedAvatarVideoControlPannelPage(QWidget):
-    def __init__(self, video_path=None, screen_index=0):
+    def __init__(self, video_path=None, screen_index=):
         super().__init__()
 
         # 메인 레이아웃
