@@ -1,0 +1,18 @@
+import torch
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        
+
+def main():
+    # Qt 앱 실행
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec_()
+
+if __name__ == "__main__":
+    main()
