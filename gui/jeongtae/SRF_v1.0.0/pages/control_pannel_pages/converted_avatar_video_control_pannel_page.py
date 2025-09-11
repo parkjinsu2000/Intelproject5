@@ -7,20 +7,25 @@ from PyQt5.QtCore import *
 
 from background_video_play_control_pannel import BackgroundVideoPlayControlPannel
 
-class MainPageControlPanelPage(QWidget):
-    def __init__(self, video_path=None, screen_index=1):
+"""
+아바타 로딩 완료 후
+캐릭터가 변환된 영상을 보여주는 페이지의 컨트롤 패널
+"""
+
+class ConvertedAvatarVideoControlPannelPage(QWidget):
+    def __init__(self, video_path=None, screen_index=0):
         super().__init__()
 
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        # 메인 레이아웃
+        self.mainLayoutV = QVBoxLayout(self)
+        self.mainLayoutV.setContentsMargins(0, 0, 0, 0)
 
         # 비디오 패널 포함
         self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
-        self.layout().addWidget(self.video_panel)
+        self.mainLayoutV.addWidget(self.video_panel)
 
         # 버튼
-        self.single_mode_Btn = QPushButton("1인 모드", self.video_panel.video_widget)
-        self.multiple_mode_Btn = QPushButton("2인 모드", self.video_panel.video_widget)
+        self.goToMainButton = QPushButton("메인으로", self.video_panel.video_widget)
 
         self.set_screen(screen_index)
 
@@ -30,23 +35,24 @@ class MainPageControlPanelPage(QWidget):
     def set_button_location(self):
         # 비디오 위젯 크기
         w, h = self.video_panel.video_widget.width(), self.video_panel.video_widget.height()
-        bw, bh = self.single_mode_Btn.width(), self.single_mode_Btn.height()
+        bw, bh = self.goToMainButton.width(), self.goToMainButton.height()
 
         # 정중앙 좌표
         x = (w - bw) // 2
         y = (h - bh) // 2
 
         # 배치
-        self.single_mode_Btn.move(x, y + bh + 200)
-        self.multiple_mode_Btn.move(x, y + bh + 300)
+        self.goToMainButton.move(x, y + bh + 200)
 
     def set_screen(self, screen_index):
         screens = QGuiApplication.screens()
         if len(screens) > screen_index:
             geo = screens[screen_index].geometry()
-            self.setGeometry(geo)
+            self.move(geo.x(), geo.y())   # 보조 모니터의 시작 좌표로 이동
+            self.resize(geo.width(), geo.height())  # 화면 크기 맞춤
         else:
             print("지정한 모니터가 없음 → 기본 모니터 사용")
+
 
 
 
@@ -57,7 +63,7 @@ if __name__ == "__main__":
     video_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/background_video_large.mp4"
 
     # 두 번째 모니터(1920x1080)에 띄우기
-    window = MainPageControlPanelPage(video_path=video_file, screen_index=1)
+    window = ConvertedAvatarVideoControlPannelPage(video_path=video_file, screen_index=1)
     # window.showFullScreen()  # 전체화면 모드
     window.showMaximized()
 
