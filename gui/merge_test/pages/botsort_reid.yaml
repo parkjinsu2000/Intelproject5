@@ -1,0 +1,21 @@
+tracker_type: botsort
+
+# 감지 score 관련
+track_high_thresh: 0.5 # 이 이상이면 확신 있는 디텍션
+track_low_thresh: 0.1 # 이 이하면 트랙 유지 보수에만 사용
+new_track_thresh: 0.8 # 새 트랙 열기 임계값(↑하면 쉽게 새 ID 안 만듦)
+
+# 매칭/유지
+match_thresh: 0.90 # 매칭을 더 보수적으로(↑면 ID 스위치↓)
+track_buffer: 100 # 가려짐에도 같은 ID 유지 시간(프레임)↑
+iou_thres: 0.25 # 박스 IoU 최소 기준(사람 겹치면 살짝 낮춰도 됨)
+
+# ReID(외형 임베딩)
+with_reid: True
+appearance_thresh: 0.50 # 외형 유사성 임계값(↑면 다른 사람으로 안 바꿈)
+proximity_thresh: 0.50 # 근접 기준(기본 유지)
+
+# 최신 울트라리틱스에서 요구
+fuse_score: False
+gmc_method: 'sparseOptFlow'
+model: 'auto'
