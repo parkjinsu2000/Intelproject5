@@ -5,9 +5,9 @@ from PyQt5.QtGui import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtCore import *
-from background_video_play_control_pannel import BackgroundVideoPlayControlPannel
+from pages.control_panel_pages.background_video_play_control_panel import BackgroundVideoPlayControlPanel
 
-class ScoreControlPannelPage(QWidget):
+class ScoreControlPanelPage(QWidget):
     def __init__(self, video_path=None, screen_index=0):
         super().__init__()
         
@@ -16,7 +16,7 @@ class ScoreControlPannelPage(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         
         # 동영상 패널
-        self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
+        self.video_panel = BackgroundVideoPlayControlPanel(video_path, screen_index)
         self.main_layout.addWidget(self.video_panel)
 
         # 버튼들을 담을 수평 레이아웃
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     
     video_file = "/home/ubuntu/Qt/SRF_v1.0.0/resource/background_video_large.mp4"
 
-    window = ScoreControlPannelPage(video_path=video_file, screen_index=0)
+    window = ScoreControlPanelPage(video_path=video_file, screen_index=0)
     window.showMaximized()
     
     sys.exit(app.exec_())

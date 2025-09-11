@@ -5,9 +5,9 @@ from PyQt5.QtGui import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtCore import *
-from background_video_play_control_pannel import BackgroundVideoPlayControlPannel
+from pages.control_panel_pages.background_video_play_control_panel import BackgroundVideoPlayControlPanel
 
-class AvatarLoadingControlPannelPage(QWidget):
+class AvatarLoadingControlPanelPage(QWidget):
     def __init__(self, video_path=None, screen_index=0):
         super().__init__()
         
@@ -15,7 +15,7 @@ class AvatarLoadingControlPannelPage(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
+        self.video_panel = BackgroundVideoPlayControlPanel(video_path, screen_index)
         self.main_layout.addWidget(self.video_panel)
         
         # '변환된 영상 보기' 버튼 생성
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     
     video_file = "/home/ubuntu/Qt/SRF_v1.0.0/resource/background_video_large.mp4"
 
-    window = AvatarLoadingControlPannelPage(video_path=video_file, screen_index=0)
+    window = AvatarLoadingControlPanelPage(video_path=video_file, screen_index=0)
     window.showMaximized()
     
     # 버튼 활성화/비활성화 테스트

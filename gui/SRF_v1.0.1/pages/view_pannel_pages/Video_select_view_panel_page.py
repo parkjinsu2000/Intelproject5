@@ -7,7 +7,7 @@ from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 
 # QWidget 클래스를 상속받는 VideoSelectViewPannelPage 클래스 정의
-class VideoSelectViewPannelPage(QWidget):
+class VideoSelectViewPanelPage(QWidget):
     def __init__(self):
         super().__init__()
         
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     
     # VideoSelectViewPannelPage 클래스의 인스턴스 생성
-    window = VideoSelectViewPannelPage()
+    window = VideoSelectViewPanelPage()
     
     # 윈도우 화면에 표시
     window.show()

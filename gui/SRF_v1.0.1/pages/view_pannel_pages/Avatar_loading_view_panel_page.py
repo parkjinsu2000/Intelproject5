@@ -6,7 +6,7 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtCore import Qt, QUrl, QTimer, QCoreApplication
 from PyQt5.QtGui import QFont, QPalette, QColor
 
-class AvatarLoadingViewPannelPage(QWidget):
+class AvatarLoadingViewPanelPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     window.setWindowTitle("로딩 & 비디오 패널 테스트")
     window.setGeometry(100, 100, 800, 600)
     
-    loading_panel = AvatarLoadingViewPannelPage()
+    loading_panel = AvatarLoadingViewPanelPage()
     main_layout = QVBoxLayout(window)
     main_layout.addWidget(loading_panel)
     

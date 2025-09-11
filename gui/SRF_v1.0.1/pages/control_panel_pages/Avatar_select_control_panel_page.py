@@ -5,9 +5,9 @@ from PyQt5.QtGui import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtCore import *
-from background_video_play_control_pannel import BackgroundVideoPlayControlPannel
+from pages.control_panel_pages.background_video_play_control_panel import BackgroundVideoPlayControlPanel
 
-class AvatarSelectControlPannelPage(QWidget):
+class AvatarSelectControlPanelPage(QWidget):
     def __init__(self, video_path=None, screen_index=0):
         super().__init__()
         
@@ -16,7 +16,7 @@ class AvatarSelectControlPannelPage(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         
         # 동영상 기능을 가진 패널을 포함
-        self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
+        self.video_panel = BackgroundVideoPlayControlPanel(video_path, screen_index)
         self.main_layout.addWidget(self.video_panel)
         
         # 버튼 생성
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         QMessageBox.critical(None, "오류", "지정된 동영상 파일을 찾을 수 없습니다. 경로를 확인해주세요.")
         sys.exit(1)
 
-    window = AvatarSelectControlPannel(video_path=video_file, screen_index=0)
+    window = AvatarSelectControlPanelPage(video_path=video_file, screen_index=0)
     window.showMaximized()
 
     sys.exit(app.exec_())
