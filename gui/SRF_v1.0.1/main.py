@@ -5,8 +5,10 @@ from PyQt5.QtCore import *
 
 from config import *
 
+
 from pages.control_pannel_pages import *
 from pages.view_pannel_pages import *
+
 
 # -------------------------------
 # Control 윈도우
@@ -96,8 +98,13 @@ class MainController(QObject):
 def main():
     app = QApplication(sys.argv)
 
+<<<<<<< HEAD
     video_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/background_video_large.mp4"
     image_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/title.png"
+=======
+    video_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/background_video_large.mp4"
+    image_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/title_image_4.png"
+>>>>>>> ad490cb (메인 컨트롤러를 만들어서 두 개의 창을 띄우도록 하는 main.py를 만들었음)
 
     controller = MainController(video_path=video_file, image_path=image_file)
 

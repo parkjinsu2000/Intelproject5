@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLa
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor, QPalette
 
-class AvatarSelectVeiwPannel(QWidget):
+class AvatarSelectViewPanelPage(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -48,6 +48,6 @@ class AvatarSelectVeiwPannel(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = AvatarSelectVeiwPannel()
+    ex = AvatarSelectViewPanelPage()
     ex.show()
     sys.exit(app.exec_())

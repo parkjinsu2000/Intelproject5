@@ -10,7 +10,7 @@ from PyQt5.QtCore import *
 캐릭터가 변환된 영상을 보여주는 페이지
 """
 
-class ConvertedAvatarVideoViewPannelPage(QWidget):
+class ConvertedAvatarVideoViewPanelPage(QWidget):
     def __init__(self, video_path=None, screen_index=1):
         super().__init__()
         # 메인 레이아웃
@@ -67,6 +67,6 @@ if __name__ == "__main__":
     video_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/background_video_large.mp4"
     # image_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/title_image_4.png"
 
-    window = ConvertedAvatarVideoViewPannelPage(video_path=video_file, screen_index=0)
+    window = ConvertedAvatarVideoViewPanelPage(video_path=video_file, screen_index=0)
     window.showMaximized()
     sys.exit(app.exec_())

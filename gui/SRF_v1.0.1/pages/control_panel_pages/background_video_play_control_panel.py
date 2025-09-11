@@ -6,7 +6,7 @@ from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtCore import *
 
 
-class BackgroundVideoPlayControlPannel(QWidget):
+class BackgroundVideoPlayControlPanel(QWidget):
     def __init__(self, video_path=None, screen_index=0):
         super().__init__()
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     video_file = "/home/ubuntu/Qt/SRF_v1.0.0/resource/background_video_small.mp4"
 
     # 두 번째 모니터(1920x1080)에 띄우기
-    window = BackgroundVideoPlayControlPannel(video_path=video_file, screen_index=1)
+    window = BackgroundVideoPlayControlPanel(video_path=video_file, screen_index=1)
     # window.showFullScreen()  # 전체화면 모드
     window.showMaximized()
 

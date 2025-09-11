@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QL
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap
 
-class ScoreViewPannelPage(QWidget):
+class ScoreViewPanelPage(QWidget):
     def __init__(self, image_path, parent=None):
         super().__init__(parent)
         
@@ -47,9 +47,9 @@ if __name__ == '__main__':
     # 현재 스크립트 파일의 디렉토리 경로
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # 상대 경로를 절대 경로로 변환
-    image_file = os.path.join(current_dir, "../../resource/score.jpg")
+    image_file = os.path.join(current_dir, "../../resource/control_title.png")
 
-    window = ScoreViewPannelPage(image_path=image_file)
+    window = ScoreViewPanelPage(image_path=image_file)
     window.setWindowTitle("Score View Panel")
     window.show() # showMaximized() 대신 show()를 사용합니다.
     
