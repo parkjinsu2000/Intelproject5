@@ -1,5 +1,6 @@
 import torch
 from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
 
 def main():
     # Qt 앱 실행
