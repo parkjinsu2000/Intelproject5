@@ -92,13 +92,13 @@ def ref_callback(pad, info, app_state):
 def user_callback(pad, info, app_state):
     """Callback for processing the user video and running the comparison logic."""
     buffer = info.get_buffer()
-    if buffer is None: return Gst.PadProbeReturn.OK
+    if buffer is None:
+        return Gst.PadProbeReturn.OK
 
     # --- Get User Frame and Poses ---
-    caps = pad.get_current_caps()
     format, width, height = get_caps_from_pad(pad)
     frame_U = get_numpy_from_buffer(buffer, format, width, height)
-    if app_state.args.no_mirror is False:
+    if not app_state.args.no_mirror:
         frame_U = cv2.flip(frame_U, 1)
     
     tracks_U = get_poses_from_buffer(buffer)
@@ -126,8 +126,10 @@ def user_callback(pad, info, app_state):
             if np.sum(np.isfinite(kps_r)) > 10:
                 kps_n_r = normalize_keypoints(kps_r)
                 vecR = pose_to_anglevec(kps_n_r)
-        except (ValueError, KeyError): pass
+        except (ValueError, KeyError):
+            pass
 
+    frame_scores = {}
     if vecR is not None and frame_idx % max(1, app_state.args.every) == 0 and len(tracks_U) > 0:
         for tid, (kps, conf, _box) in tracks_U.items():
             if np.sum(np.isfinite(kps)) < 10: continue
@@ -139,9 +141,10 @@ def user_callback(pad, info, app_state):
             if s < 50.0: app_state.id_total[tid] = max(0, app_state.id_total[tid]-1)
             elif s >= 70.0: app_state.id_total[tid] = min(100, app_state.id_total[tid]+1)
         
-        rank = sorted(app_state.id_total.items(), key=lambda x: x[0])
-        msg = " | ".join([f"ID{tid}:{score}" for tid, score in rank])
-        print(f"[total] {msg}")
+        #rank = sorted(app_state.id_total.items(), key=lambda x: x[0])
+        #msg = " | ".join([f"ID{tid}:{score}" for tid, score in rank])
+        #print(f"[total] {msg}")
+        print(f"[frame {frame_idx}] user tracks: {list(tracks_U.keys())}, ref tracks: {list(tracks_R.keys())}, scores: {frame_scores}, totals: {dict(app_state.id_total)}", flush=True)
 
     # --- Drawing Logic ---
     put_text(frame_R, "REF", (12,48), 1.1)
