@@ -3,24 +3,20 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtGraphicalEffects 1.15
 
-// import "common" // BackgroundVideo를 불러옵니다.
-
 Rectangle {
     id: videoSelectScreen
     color: "black"
 
-    Image {
-        source: "resource/background_control.png"
-        anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
-    }
-
-    // 🔹 콘텐츠 오버레이
+    // 🔹 콘텐츠 전체
     Item {
         anchors.fill: parent
 
+        // 🔹 썸네일 그리드 영역
         ColumnLayout {
-            anchors.centerIn: parent
+            id: contentLayout
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.topMargin: 80
             spacing: 60
 
             GridLayout {
@@ -37,7 +33,7 @@ Rectangle {
                         // 썸네일 이미지 버튼
                         Item {
                             width: 300
-                            height: 240
+                            height: 480
                             Image {
                                 source: model.thumbnail
                                 fillMode: Image.PreserveAspectCrop
@@ -76,34 +72,38 @@ Rectangle {
                     }
                 }
             }
+        }
 
-            // 시작 버튼
-            Item {
-                width: 300
-                height: 70
-                Rectangle { anchors.fill: parent; color: "royalblue"; radius: 10 }
-                Text {
-                    text: "시작하기"
-                    anchors.centerIn: parent
-                    font.pixelSize: 20
-                    color: "white"
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        console.log("게임 시작!")
-                        // signalEmitter.startGame()
-                    }
+        // 🔹 하단 중앙의 시작 버튼
+        Item {
+            id: startButton
+            width: 300
+            height: 70
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 60    // 아래 여백 조절
+
+            Rectangle { anchors.fill: parent; color: "royalblue"; radius: 10 }
+            Text {
+                text: "시작하기"
+                anchors.centerIn: parent
+                font.pixelSize: 20
+                color: "white"
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    console.log("게임 시작!")
+                    // signalEmitter.startGame()
                 }
             }
         }
     }
 
-    // ListModel은 이 화면에 고유한 로직이므로 여기에 유지합니다.
+    // 🔹 비디오 리스트 모델
     ListModel {
         id: videoModel
-        // ... (기존 ListElement 데이터 유지) ...
         ListElement { name: "썸네일 1"; videoPath: "resource/videos/biggibiggi.mp4"; thumbnail: "resource/videos/biggibiggi.png" }
         ListElement { name: "썸네일 2"; videoPath: "resource/videos/frog.mp4"; thumbnail: "resource/videos/frog.png" }
         ListElement { name: "썸네일 3"; videoPath: "resource/videos/jump.mp4"; thumbnail: "resource/videos/jump.png" }
