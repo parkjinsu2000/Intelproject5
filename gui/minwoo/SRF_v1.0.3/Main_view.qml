@@ -34,46 +34,72 @@ ApplicationWindow {
 
     // 🎬 배경 영상 출력
     VideoOutput {
-        id: videoOutput
+        id: backgroundVideoOutput
         anchors.fill: parent
-        source: mediaPlayer
-        fillMode: VideoOutput.PreserveAspectFit
+        source: backgroundMediaPlayer
+        fillMode: VideoOutput.PreserveAspectCrop
     }
 
-    // 🎬 안정적인 영상 재생기
+    // 🎬 안정적인 배경 영상 재생기
     MediaPlayer {
-        id: mediaPlayer
+        id: backgroundMediaPlayer
         volume: 0.5
         loops: MediaPlayer.Infinite
         autoPlay: true
-        source: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/openning_sound.mp4"  // ✅ 초기 영상 경로 지정
+        source: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/openning_sound.mp4"
 
         onStatusChanged: {
             if (status === MediaPlayer.Loaded) {
-                console.log("✅ 초기 영상 로딩 완료 → 재생 시작")
-                mediaPlayer.play()
+                console.log("✅ 배경 영상 로딩 완료 → 재생 시작")
+                backgroundMediaPlayer.play()
             } else if (status === MediaPlayer.InvalidMedia) {
-                console.log("❌ 잘못된 초기 영상 경로:", mediaPlayer.source)
+                console.log("❌ 잘못된 배경 영상 경로:", backgroundMediaPlayer.source)
             }
         }
 
         onPlaybackStateChanged: {
             if (playbackState === MediaPlayer.Stopped) {
-                console.log("⏹️ 멈춤 상태 → 다시 재생 시도")
-                mediaPlayer.play()
+                console.log("⏹️ 배경 영상 멈춤 상태 → 다시 재생 시도")
+                backgroundMediaPlayer.play()
             }
         }
+    }
 
-        onSourceChanged: {
-            console.log("🔄 source 변경됨:", mediaPlayer.source)
+    // 🎬 전경 영상 출력 (선택된 비디오)
+    VideoOutput {
+        id: foregroundVideoOutput
+        anchors.fill: parent
+        source: foregroundMediaPlayer
+        fillMode: VideoOutput.PreserveAspectFit
+        visible: false
+    }
+
+    // 🎬 전경 영상 재생기
+    MediaPlayer {
+        id: foregroundMediaPlayer
+        volume: 1.0 // 배경음보다 크게
+        autoPlay: false
+        loops: 0 // 한 번만 재생
+
+        onStatusChanged: {
+            if (status === MediaPlayer.EndOfMedia) {
+                console.log("⏹️ 전경 영상 재생 완료");
+                foregroundVideoOutput.visible = false;
+                foregroundMediaPlayer.source = ""; // 비디오 언로드
+            } else if (status === MediaPlayer.InvalidMedia) {
+                console.log("❌ 잘못된 전경 영상 경로:", foregroundMediaPlayer.source)
+                foregroundVideoOutput.visible = false;
+            }
         }
     }
+
 
     // 🔧 외부에서 호출 가능한 함수
     function playVideo(videoPath) {
         console.log("📺 영상 경로 변경 요청:", videoPath)
-        mediaPlayer.stop()
-        mediaPlayer.source = ""
-        mediaPlayer.source = videoPath
+        foregroundMediaPlayer.stop()
+        foregroundMediaPlayer.source = videoPath
+        foregroundVideoOutput.visible = true
+        foregroundMediaPlayer.play()
     }
 }
