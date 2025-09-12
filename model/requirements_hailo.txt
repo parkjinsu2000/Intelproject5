@@ -1,0 +1,15 @@
+numpy>=1.26
+opencv-python>=4.11
+PyGObject>=3.42
+gi.repository.Gst
+hailo-apps @ git+https://github.com/hailo-ai/hailo-apps-infra.git@2ecfc8662972ad8384546b7dbe79125dfddcb276
+hailort>=4.20.0
+
+# optional / common utilities
+matplotlib>=3.10
+pandas>=2.3
+scipy>=1.16
+tqdm>=4.64
+requests>=2.28
+python-dotenv>=0.21
+

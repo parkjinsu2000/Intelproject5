@@ -1,2 +1,4 @@
 model/vid/*.mp4
 model/py/*.pt
+model/venv_py
+hailo-rpi5-examples/

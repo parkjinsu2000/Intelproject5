@@ -2,7 +2,7 @@
 import numpy as np
 
 # -------------------- 설정 --------------------
-MODEL_PATH_DEFAULT = "yolov8l-pose.pt"
+MODEL_PATH_DEFAULT = "yolov8n-pose.pt"
 DETECT_CONF_THRES = 0.25
 KPT_CONF_THRES = 0.20
 K_STRICT = 10.0
