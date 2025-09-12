@@ -28,7 +28,7 @@
     "right_lower_leg": [465, 927]
   },
   "background": {
-    "path": "stage1.png", 
+    "path": "stage.png", 
     "color": [0, 0, 0],   
     "resize": "native",     
     "blur": 0           

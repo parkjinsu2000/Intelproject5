@@ -21,6 +21,7 @@ class MannequinRenderer(QObject):
     log = pyqtSignal(str)
     error = pyqtSignal(str)
     playReady = pyqtSignal(object, float)  # (frames: list[QImage], fps: float)
+    finished = pyqtSignal()  
 
     def __init__(
         self,
@@ -62,6 +63,12 @@ class MannequinRenderer(QObject):
         # Cached assets/background
         self.assets = {}
         self.background = None
+        self.v_align_mode = "center"
+        self._cancel = False 
+
+
+    def cancel(self):                    # ✅ 외부에서 취소 요청
+        self._cancel = True
 
     # ===================== Utility =====================
 
@@ -106,6 +113,33 @@ class MannequinRenderer(QObject):
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         qimg = QImage(img_rgb.data, w, h, img_rgb.strides[0], QImage.Format_RGB888)
         return qimg.copy()
+    
+    def _compute_dy(self, kps_raw, top_pad):
+        mode = getattr(self, "v_align_mode", "top_pad")
+        H = self.CANVAS_H
+
+        ys = [float(kps_raw[i,1]) for i in range(kps_raw.shape[0]) if np.isfinite(kps_raw[i,1])]
+        if not ys:
+            return float(top_pad)
+
+        ymin, ymax = min(ys), max(ys)
+
+        if mode == "center":
+            char_h = max(1.0, ymax - ymin)
+            target_top = (H - char_h) * 0.5
+            return float(target_top - ymin)
+
+        if mode == "feet":
+            cand = []
+            for idx in (L_AN, R_AN, L_KN, R_KN, L_HP, R_HP):
+                y = kps_raw[idx,1]
+                if np.isfinite(y):
+                    cand.append(float(y))
+            anchor_y = max(cand) if cand else ymax
+            floor_y = H - float(getattr(self, "bottom_margin_px", 40))
+            return float(floor_y - anchor_y)
+
+        return float(top_pad)
 
     # ===================== Loaders =====================
 
@@ -370,7 +404,7 @@ class MannequinRenderer(QObject):
             hx = self.hip_center_x(kps_raw)
             if np.isfinite(hx):
                 dx += self.CANVAS_W * 0.5 - float(hx)
-        dy = float(top_pad)
+        dy = self._compute_dy(kps_raw, top_pad)
 
         kps_scaled = self.reconstruct_skeleton_follow_json(kps_raw, dx, dy)
 
@@ -383,39 +417,85 @@ class MannequinRenderer(QObject):
         # body thickness ratio by shoulders
         scale_x = self.compute_body_shrink_ratio(kps_scaled)
 
-        # [LAYER 1] legs (upper + lower)
-        if np.all(np.isfinite(kps_scaled[[L_HP, L_KN]])):
-            self.attach_segment_scaled("left_upper_leg", assets,
-                self.ANCHORS[("left_upper_leg","body")]["parent"],
-                self.ANCHORS[("left_upper_leg","left_lower_leg")]["parent"],
-                kps_scaled[L_HP], kps_scaled[L_KN], canvas, scale_x=scale_x)
-        if np.all(np.isfinite(kps_scaled[[L_KN, L_AN]])):
-            self.attach_segment_scaled("left_lower_leg", assets,
-                self.ANCHORS[("left_upper_leg","left_lower_leg")]["child"],
-                self.TIP_LOWER["left_lower_leg"],
-                kps_scaled[L_KN], kps_scaled[L_AN], canvas, scale_x=scale_x)
+        # 유효성 플래그
+        left_upper_ok  = np.all(np.isfinite(kps_scaled[[L_HP, L_KN]]))
+        left_lower_ok  = np.all(np.isfinite(kps_scaled[[L_KN, L_AN]]))
+        right_upper_ok = np.all(np.isfinite(kps_scaled[[R_HP, R_KN]]))
+        right_lower_ok = np.all(np.isfinite(kps_scaled[[R_KN, R_AN]]))
+        body_ok        = np.all(np.isfinite(kps_scaled[[L_SH, R_SH, L_HP, R_HP]]))
 
-        if np.all(np.isfinite(kps_scaled[[R_HP, R_KN]])):
-            self.attach_segment_scaled("right_upper_leg", assets,
-                self.ANCHORS[("right_upper_leg","body")]["parent"],
-                self.ANCHORS[("right_upper_leg","right_lower_leg")]["parent"],
-                kps_scaled[R_HP], kps_scaled[R_KN], canvas, scale_x=scale_x)
-        if np.all(np.isfinite(kps_scaled[[R_KN, R_AN]])):
-            self.attach_segment_scaled("right_lower_leg", assets,
-                self.ANCHORS[("right_upper_leg","right_lower_leg")]["child"],
-                self.TIP_LOWER["right_lower_leg"],
-                kps_scaled[R_KN], kps_scaled[R_AN], canvas, scale_x=scale_x)
+        # ren_parts 모드 감지: 폴더명이 ren_parts / rens_parts 인 경우
+        ren_mode = any(s in os.path.basename(self.assets_dir).lower() for s in ("ren_parts", "rens_parts"))
 
-        # [LAYER 2] body (mid)
-        if np.all(np.isfinite(kps_scaled[[L_SH, R_SH, L_HP, R_HP]])):
-            hip_center = 0.5 * (kps_scaled[L_HP] + kps_scaled[R_HP])
-            self.attach_body_affine(assets, canvas,
-                                    kps_scaled[L_SH], kps_scaled[R_SH], hip_center,
-                                    scale_x=scale_x)
+        if ren_mode:
+            # ===== ren_parts: 몸통 먼저 → 다리(몸통 위로) → 팔 =====
+            # [LAYER 1] 몸통
+            if body_ok:
+                hip_center = 0.5 * (kps_scaled[L_HP] + kps_scaled[R_HP])
+                self.attach_body_affine(assets, canvas,
+                                        kps_scaled[L_SH], kps_scaled[R_SH], hip_center,
+                                        scale_x=scale_x)
+            else:
+                self.alpha_paste_full(canvas, self.warp_full(assets["body"], self.H_translate(dx, dy)))
+
+            # [LAYER 2] 다리 (몸통 앞쪽에 나오도록)
+            if left_upper_ok:
+                self.attach_segment_scaled("left_upper_leg", assets,
+                    self.ANCHORS[("left_upper_leg","body")]["parent"],
+                    self.ANCHORS[("left_upper_leg","left_lower_leg")]["parent"],
+                    kps_scaled[L_HP], kps_scaled[L_KN], canvas, scale_x=scale_x)
+            if left_lower_ok:
+                self.attach_segment_scaled("left_lower_leg", assets,
+                    self.ANCHORS[("left_upper_leg","left_lower_leg")]["child"],
+                    self.TIP_LOWER["left_lower_leg"],
+                    kps_scaled[L_KN], kps_scaled[L_AN], canvas, scale_x=scale_x)
+
+            if right_upper_ok:
+                self.attach_segment_scaled("right_upper_leg", assets,
+                    self.ANCHORS[("right_upper_leg","body")]["parent"],
+                    self.ANCHORS[("right_upper_leg","right_lower_leg")]["parent"],
+                    kps_scaled[R_HP], kps_scaled[R_KN], canvas, scale_x=scale_x)
+            if right_lower_ok:
+                self.attach_segment_scaled("right_lower_leg", assets,
+                    self.ANCHORS[("right_upper_leg","right_lower_leg")]["child"],
+                    self.TIP_LOWER["right_lower_leg"],
+                    kps_scaled[R_KN], kps_scaled[R_AN], canvas, scale_x=scale_x)
+
         else:
-            self.alpha_paste_full(canvas, self.warp_full(assets["body"], self.H_translate(dx, dy)))
+            # ===== 기본: 다리 → 몸통 → 팔 (기존 동작 유지) =====
+            # [LAYER 1] 다리
+            if left_upper_ok:
+                self.attach_segment_scaled("left_upper_leg", assets,
+                    self.ANCHORS[("left_upper_leg","body")]["parent"],
+                    self.ANCHORS[("left_upper_leg","left_lower_leg")]["parent"],
+                    kps_scaled[L_HP], kps_scaled[L_KN], canvas, scale_x=scale_x)
+            if left_lower_ok:
+                self.attach_segment_scaled("left_lower_leg", assets,
+                    self.ANCHORS[("left_upper_leg","left_lower_leg")]["child"],
+                    self.TIP_LOWER["left_lower_leg"],
+                    kps_scaled[L_KN], kps_scaled[L_AN], canvas, scale_x=scale_x)
 
-        # upper arms (draw after body)
+            if right_upper_ok:
+                self.attach_segment_scaled("right_upper_leg", assets,
+                    self.ANCHORS[("right_upper_leg","body")]["parent"],
+                    self.ANCHORS[("right_upper_leg","right_lower_leg")]["parent"],
+                    kps_scaled[R_HP], kps_scaled[R_KN], canvas, scale_x=scale_x)
+            if right_lower_ok:
+                self.attach_segment_scaled("right_lower_leg", assets,
+                    self.ANCHORS[("right_upper_leg","right_lower_leg")]["child"],
+                    self.TIP_LOWER["right_lower_leg"],
+                    kps_scaled[R_KN], kps_scaled[R_AN], canvas, scale_x=scale_x)
+
+            # [LAYER 2] 몸통
+            if body_ok:
+                hip_center = 0.5 * (kps_scaled[L_HP] + kps_scaled[R_HP])
+                self.attach_body_affine(assets, canvas,
+                                        kps_scaled[L_SH], kps_scaled[R_SH], hip_center,
+                                        scale_x=scale_x)
+            else:
+                self.alpha_paste_full(canvas, self.warp_full(assets["body"], self.H_translate(dx, dy)))
+
+        # [LAYER 3] 팔 (두 모드 모두 최상단)
         if np.all(np.isfinite(kps_scaled[[L_SH, L_EL]])):
             self.attach_segment_scaled("left_upper_arm", assets,
                 self.ANCHORS[("body","left_upper_arm")]["child"],
@@ -427,7 +507,6 @@ class MannequinRenderer(QObject):
                 self.ANCHORS[("right_upper_arm","right_lower_arm")]["parent"],
                 kps_scaled[R_SH], kps_scaled[R_EL], canvas, scale_x=scale_x)
 
-        # [LAYER 3] forearms/hands (top)
         if np.all(np.isfinite(kps_scaled[[L_EL, L_WR]])):
             self.attach_segment_scaled("left_lower_arm", assets,
                 self.ANCHORS[("left_upper_arm","left_lower_arm")]["child"],
@@ -469,7 +548,7 @@ class MannequinRenderer(QObject):
             else:
                 # 기존 로직(avatar 크기 기반)
                 self.CANVAS_W = self.REF_W + self.side_extra*2
-                self.CANVAS_H = self.REF_H + 400
+                self.CANVAS_H = self.REF_H + max(0, self.top_pad)
 
             # 배경 생성 (위에서 정한 캔버스 사이즈로)
             self.background = self.build_background_from_spec(bg_spec, self.CANVAS_W, self.CANVAS_H)
@@ -491,6 +570,8 @@ class MannequinRenderer(QObject):
             total_steps = len(list(range(0, len(frames), self.stride))) or 1
 
             for idx, i in enumerate(range(0, len(frames), self.stride), start=1):
+                if self._cancel:
+                    break
                 k = frames[i].copy()
                 if self.pose_hflip:
                     k = self.hflip_coords(k)
@@ -507,3 +588,6 @@ class MannequinRenderer(QObject):
 
         except Exception as e:
             self.error.emit(str(e))
+
+        finally:
+            self.finished.emit()

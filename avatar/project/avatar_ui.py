@@ -5,7 +5,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 import os as _os, cv2, sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QGroupBox,
                              QRadioButton, QPushButton, QProgressBar, QLabel)
-from PyQt5.QtCore import Qt, QTimer, QThread
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSlot   # ← pyqtSlot 추가
 from PyQt5.QtGui import QPixmap, QImage, QPainter
 from avatar_qt import MannequinRenderer
 
@@ -150,44 +150,52 @@ QProgressBar::chunk {
         self._show(self.idx)
 
     # ---------- 렌더링 제어 ----------
-    def start_render(self, json_path, assets_dir, show_debug=True):
+    def start_render(self, json_path, assets_dir):
+        # 실행 중이면 먼저 멈춤
         self.stop_render()
-        self.progress.setValue(0)
-        self.progress.show()
-        # self.view.setText("로딩 중...")
 
-        mp4_path = _os.path.splitext(json_path)[0] + ".mp4"
-        if _os.path.exists(mp4_path):
-            self._start_preview(mp4_path)
-        else:
-            self.view.setText(f"로딩 중... (프리뷰 없음)\n{mp4_path}")
-
-        self.renderer = MannequinRenderer(
-            json_path=json_path,
-            assets_dir=assets_dir,
-            show_debug=False,  # 스켈레톤 점 숨김
-            parent=None
-        )
-        self.thread = QThread(self)
+        from PyQt5.QtCore import QThread
+        self.thread = QThread(self)                  # 부모는 윈도우(수명 관리)
+        self.renderer = MannequinRenderer(json_path, assets_dir)  # parent=None 권장
         self.renderer.moveToThread(self.thread)
 
-        self.renderer.progress.connect(self.progress.setValue)
-        self.renderer.error.connect(self._on_error)
-        self.renderer.playReady.connect(self._on_ready)
-
+        # 시작/종료 배선
         self.thread.started.connect(self.renderer.run)
+        # MannequinRenderer에 finished 신호가 있다고 가정
+        self.renderer.finished.connect(self.thread.quit)           # 끝나면 스레드 종료
+        self.renderer.finished.connect(self.renderer.deleteLater)  # 워커 정리
+        self.thread.finished.connect(self.thread.deleteLater)      # 스레드 정리
+
+        # 진행/로그/결과 연결 (이 이름의 슬롯을 아래에 추가함)
+        self.renderer.progress.connect(self.on_progress)
+        self.renderer.log.connect(self.on_log)
+        self.renderer.error.connect(self.on_error)
+        self.renderer.playReady.connect(self.on_play_ready)
+
+        # 진행바 초기화
+        self.progress.setValue(0)
+        self.progress.show()
+
         self.thread.start()
 
-    def stop_render(self):
-        self.timer.stop()
-        self._stop_preview()
-        if self.thread:
-            self.thread.quit()
-            self.thread.wait(3000)
-        self.thread = None
-        self.renderer = None
-        self.frames = []
+    def stop_render(self, wait_ms=3000):
+        # 렌더 중이면 취소→종료→대기
+        if hasattr(self, "renderer") and self.renderer:
+            try:
+                self.renderer.cancel()  # 루프가 자연 종료되도록 (있다면)
+            except Exception:
+                pass
+        if hasattr(self, "thread") and self.thread:
+            if self.thread.isRunning():
+                self.thread.quit()
+                self.thread.wait(wait_ms)  # 반드시 대기
 
+    def closeEvent(self, event):
+        # 창 닫을 때 스레드 정리
+        self.stop_render()
+        super().closeEvent(event)
+
+    # ---------- 기존 내부 콜백 ----------
     def _on_error(self, msg):
         self.progress.hide()
         self.view.setText("ERROR: " + msg)
@@ -204,6 +212,31 @@ QProgressBar::chunk {
             return
         self._show(0)
         self.timer.start(int(round(1000.0 / self.fps)))
+
+    # ---------- 신호에 연결될 슬롯들(추가) ----------
+    @pyqtSlot(int)
+    def on_progress(self, value: int):
+        try:
+            if self.progress.isHidden():
+                self.progress.show()
+            self.progress.setValue(int(value))
+            if value >= 100:
+                self.progress.hide()
+        except Exception:
+            pass
+
+    @pyqtSlot(str)
+    def on_log(self, text: str):
+        # 필요 시 별도 로그 위젯로 보내세요. 일단 콘솔 출력.
+        print(text)
+
+    @pyqtSlot(str)
+    def on_error(self, msg: str):
+        self._on_error(msg)
+
+    @pyqtSlot(object, float)
+    def on_play_ready(self, frames, fps: float):
+        self._on_ready(frames, fps)
 
     def resizeEvent(self, e):
         # 배경은 paintEvent에서 자동 리렌더링
@@ -288,9 +321,9 @@ QPushButton:hover {
 
 DEFAULT_OPTIONS = {
     1: ("dance_poses.json", "naruto_parts"),
-    2: ("dance_poses.json", "mannequin_parts"),
-    3: ("dance_poses.json", "naruto_parts_alt"),
-    4: ("dance_poses.json", "naruto_parts"),
+    2: ("sodapop.json", "rumi_parts"),
+    3: ("sodapop.json", "dady_parts"),
+    4: ("dance_poses.json", "ren_parts"),
 }
 
 def run_app(options: dict = None):
