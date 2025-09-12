@@ -1,5 +1,6 @@
 # py-hailo/main.py
 import argparse
+import os
 import time
 import collections
 import numpy as np
@@ -21,7 +22,7 @@ from drawing_utils import draw_pose_with_id, put_text, draw_countdown_overlay
 class AppState:
     def __init__(self, args):
         self.ref_tracks_all_frames = []
-        self.ref_frames_cache = []
+        self.ref_total_frames = 0
         self.user_vec_histories = collections.defaultdict(lambda: collections.deque(maxlen=SMOOTHING_WINDOW_SIZE))
         self.last_rendered_frame = None
         self.frame_count = 0
@@ -60,6 +61,15 @@ def ref_callback(pad, info, app_state):
         return Gst.PadProbeReturn.OK
     poses = get_poses_from_buffer(buffer)
     app_state.ref_tracks_all_frames.append(poses)
+
+    # Progress bar
+    total_frames = app_state.ref_total_frames
+    if total_frames > 0:
+        current_frame = len(app_state.ref_tracks_all_frames)
+        progress = (current_frame / total_frames) * 100
+        # Use a carriage return to show progress on a single line
+        print(f"\r> Preprocessing reference: [{current_frame}/{total_frames}] {progress:.1f}%", end="", flush=True)
+
     return Gst.PadProbeReturn.OK
 
 def user_callback(pad, info, app_state):
@@ -70,20 +80,18 @@ def user_callback(pad, info, app_state):
     if buffer is None:
         return Gst.PadProbeReturn.OK
 
+    # Get user frame and poses
     format, width, height = get_caps_from_pad(pad)
     frame_U = get_numpy_from_buffer(buffer, format, width, height)
     if not app_state.args.no_mirror:
         frame_U = cv2.flip(frame_U, 1)
-
     tracks_U = get_poses_from_buffer(buffer)
 
+    # Get reference poses for scoring
     frame_idx = app_state.frame_count
     tracks_R = app_state.ref_tracks_all_frames[frame_idx] if frame_idx < len(app_state.ref_tracks_all_frames) else {}
-    frame_R = app_state.ref_frames_cache[frame_idx].copy() if frame_idx < len(app_state.ref_frames_cache) else np.zeros_like(frame_U)
 
-    print(f"[debug] frame_idx={frame_idx}, len(tracks_R)={len(tracks_R)}, len(tracks_U)={len(tracks_U)}", flush=True)
-
-    # scoring
+    # Scoring logic (remains the same)
     vecR = None
     if tracks_R:
         try:
@@ -109,15 +117,18 @@ def user_callback(pad, info, app_state):
             elif s >= 70.0:
                 app_state.id_total[tid] = min(100, app_state.id_total[tid]+1)
 
-    put_text(frame_R, "REF", (12,48), 1.1)
-    for tid_r, (kps_r, conf_r, box_r) in tracks_R.items():
-        draw_pose_with_id(frame_R, kps_r, conf_r, tid_r, box_xyxy=box_r, draw_color=(255,255,255))
+    # Simplified drawing: only draw user poses on user frame
     for tid_u, (kps_u, conf_u, box_u) in tracks_U.items():
         draw_pose_with_id(frame_U, kps_u, conf_u, tid_u, box_xyxy=box_u, draw_color=PERSON_COLORS[tid_u % len(PERSON_COLORS)])
 
-    canvas = np.hstack([cv2.resize(frame_R, (frame_U.shape[1], frame_U.shape[0])), frame_U])
-    app_state.last_rendered_frame = canvas
+    # Update app state for display
+    app_state.last_rendered_frame = frame_U
     app_state.last_score = dict(app_state.id_total)
+
+    # Print scores
+    scores = dict(app_state.id_total)
+    score_str = " | ".join([f"ID{tid}: {score}" for tid, score in sorted(scores.items())])
+    print(f"[total] {score_str}", flush=True)
 
     app_state.increment_frame_count()
     return Gst.PadProbeReturn.OK
@@ -133,70 +144,174 @@ def main():
     ap.add_argument("--disp-width", type=int, default=None)
     ap.add_argument("--save", type=str, default=None)
     ap.add_argument("--no-mirror", action="store_true")
-    args = ap.parse_args()
+    
+    # Store our script's args and clear sys.argv for the Hailo apps
+    my_script_args = ap.parse_args()
+    original_sys_argv = sys.argv[:]
+    sys.argv = [original_sys_argv[0]]
 
-    app_state = AppState(args)
+    app_state = AppState(my_script_args)
     cv2.setUseOptimized(True)
     cv2.setNumThreads(4)
 
-    # 1) cache reference frames
-    print("[info] Pre-processing reference video and caching frames...")
-    cap_ref = cv2.VideoCapture(args.ref)
+    # 1) Get reference video frame count
+    print("[info] Getting reference video frame count...")
+    cap_ref = cv2.VideoCapture(my_script_args.ref)
     if not cap_ref.isOpened():
         raise RuntimeError("Cannot open reference video")
-    while True:
-        ok, frame = cap_ref.read()
-        if not ok:
-            break
-        app_state.ref_frames_cache.append(frame)
+    app_state.ref_total_frames = int(cap_ref.get(cv2.CAP_PROP_FRAME_COUNT))
     cap_ref.release()
-    print(f"[info] {len(app_state.ref_frames_cache)} reference frames cached.")
+    print(f"[info] Reference video has {app_state.ref_total_frames} total frames.")
 
     # 2) Hailo GStreamer reference pass
-    print("[info] Reference preprocess pose extraction start.")
-    original_argv = sys.argv[:]
-    sys.argv = [original_argv[0], '--input', args.ref]
-    ref_app = GStreamerPoseEstimationApp(ref_callback, app_state)
-    #TODO wtf
-    ref_app.run()
-    sys.argv = original_argv
-    print("[info] Reference preprocessing done. Poses extracted.")
+    npz_path = f"{my_script_args.ref}.npz"
+    if os.path.exists(npz_path):
+        print(f"[info] Loading pre-processed poses from {npz_path}")
+        with np.load(npz_path, allow_pickle=True) as data:
+            app_state.ref_tracks_all_frames = data['poses']
+        print(f"[info] {len(app_state.ref_tracks_all_frames)} frames of poses loaded.")
+    else:
+        print("[info] Reference preprocess pose extraction start (will save to .npz).")
+        
+        # Set argv specifically for the reference app
+        sys.argv.extend(['--input', os.path.abspath(my_script_args.ref)])
+        
+        # Create the app, but we will run our own main loop
+        ref_app = GStreamerPoseEstimationApp(ref_callback, app_state)
+
+        # --- Start of manual probe injection ---
+        identity_element = ref_app.pipeline.get_by_name("identity_callback")
+        if identity_element:
+            sink_pad = identity_element.get_static_pad("sink")
+            if sink_pad:
+                probe_id = sink_pad.add_probe(Gst.PadProbeType.BUFFER, ref_callback, app_state)
+                if probe_id > 0:
+                    print(f"[info] Manually added probe with ID {probe_id} to identity_callback sink pad.")
+                else:
+                    print("[error] Failed to add probe to identity_callback sink pad.")
+            else:
+                print("[error] Could not get sink pad from identity_callback.")
+        else:
+            print("[error] Could not find element named identity_callback in the pipeline.")
+        # --- End of manual probe injection ---
+
+        # We only need the data from the callback, not the video display.
+        # So we get the display element and replace its sink with a fakesink.
+        sink_elem = ref_app.pipeline.get_by_name("hailo_display")
+        if sink_elem is not None:
+            # sink_elem.set_property("video-sink", Gst.ElementFactory.make("fakesink", "fakesink"))
+            print("[info] fakesink를 비활성화하고, 비디오 출력을 활성화합니다.")
+
+        # Create and run our own main loop to handle messages gracefully
+        ref_main_loop = GLib.MainLoop()
+        bus = ref_app.pipeline.get_bus()
+        bus.add_signal_watch()
+
+        def on_message(bus, message):
+            mtype = message.type
+            if mtype == Gst.MessageType.EOS:
+                print("\n[info] EOS received, quitting preprocessing loop.")
+                ref_main_loop.quit()
+            elif mtype == Gst.MessageType.ERROR:
+                err, debug = message.parse_error()
+                print(f"\n[error] GStreamer error: {err}, {debug}")
+                ref_main_loop.quit()
+
+        bus.connect("message", on_message)
+
+        # Start the pipeline and the main loop
+        print("[info] Reference pipeline starting...")
+        ref_app.pipeline.set_state(Gst.State.PLAYING)
+        ref_main_loop.run() # This blocks until quit() is called
+
+        # Cleanup
+        ref_app.pipeline.set_state(Gst.State.NULL)
+        print(f"[info] Reference preprocessing done. Saving {len(app_state.ref_tracks_all_frames)} frames of poses to {npz_path}")
+        np.savez(npz_path, poses=app_state.ref_tracks_all_frames)
+        
+        # Clear argv for the next app
+        sys.argv = [original_sys_argv[0]]
 
     # 3) user pipeline
+    # Set argv specifically for the user app
+    sys.argv.extend(['--input', my_script_args.source])
     user_app = GStreamerPoseEstimationApp(user_callback, app_state)
+    sys.argv = original_sys_argv # Restore original argv
+
+    # --- Start of manual probe injection ---
+    identity_element_user = user_app.pipeline.get_by_name("identity_callback")
+    if identity_element_user:
+        sink_pad_user = identity_element_user.get_static_pad("sink")
+        if sink_pad_user:
+            probe_id_user = sink_pad_user.add_probe(Gst.PadProbeType.BUFFER, user_callback, app_state)
+            if probe_id_user > 0:
+                print(f"[info] Manually added probe with ID {probe_id_user} to user pipeline identity_callback sink pad.")
+        else:
+            print("[error] Could not get sink pad from user pipeline identity_callback.")
+    else:
+        print("[error] Could not find element named identity_callback in the user pipeline.")
+    # --- End of manual probe injection ---
+
+    # Set up a bus watcher to handle messages from the pipeline
+    bus = user_app.pipeline.get_bus()
+    bus.add_signal_watch()
+
+    def on_user_message(bus, message):
+        mtype = message.type
+        if mtype == Gst.MessageType.EOS:
+            print(f"\n[info] Received {Gst.MessageType.get_name(mtype)}, quitting user loop.")
+            main_loop.quit()
+        elif mtype == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            print(f"\n[error] GStreamer error: {err}, {debug}")
+            main_loop.quit()
+
+    bus.connect("message", on_user_message)
+
     sink_elem = user_app.pipeline.get_by_name("hailo_display")
     if sink_elem is not None:
-        sink_elem.set_property("video-sink", Gst.ElementFactory.make("fakesink", "fakesink"))
-        print("[info] Set hailo_display -> fakesink (no pipeline-level display)")
+        #sink_elem.set_property("video-sink", Gst.ElementFactory.make("fakesink", "fakesink"))
+        print("[info] user_app: fakesink를 비활성화하고, 비디오 출력을 활성화합니다.")
 
     main_loop = GLib.MainLoop()
     def gst_thread_func():
         main_loop.run()
         app_state.running = False
     gst_thread = threading.Thread(target=gst_thread_func)
+
+    print("[info] User pipeline starting...")
+    user_app.pipeline.set_state(Gst.State.PLAYING)
+
     gst_thread.start()
     print("[info] GStreamer thread started.")
 
-    writer = None
-    if args.save:
-        h, w = app_state.ref_frames_cache[0].shape[:2]
-        w *= 2  # canvas width
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(args.save, fourcc, 25.0, (w, h))
+    # writer = None
+    # if my_script_args.save:
+    #     h, w = app_state.ref_frames_cache[0].shape[:2]
+    #     w *= 2  # canvas width
+    #     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    #     writer = cv2.VideoWriter(my_script_args.save, fourcc, 25.0, (w, h))
+
+    WINDOW_NAME = "Multi Dance Compare (q to quit)" # Define WINDOW_NAME outside try block
+    cv2.namedWindow(WINDOW_NAME, cv2_WINDOW_NORMAL)
 
     try:
         while app_state.running:
             if app_state.last_rendered_frame is not None:
-                cv2.imshow("Multi Dance Compare (q to quit)", app_state.last_rendered_frame)
-                print(f"[total] {dict(app_state.id_total)}", flush=True)
+                cv2.imshow(WINDOW_NAME, app_state.last_rendered_frame) # Use WINDOW_NAME here
 
             if (cv2.waitKey(1) & 0xFF) == ord('q'):
-                user_app.pipeline.send_event(Gst.Event.new_eos())
+                print("\n'q' key pressed. Shutting down.")
+                app_state.running = False
+                main_loop.quit()
                 break
+
             time.sleep(0.01)
 
     except KeyboardInterrupt:
-        user_app.pipeline.send_event(Gst.Event.new_eos())
+        print("\nCtrl+C pressed. Shutting down.")
+        app_state.running = False
+        main_loop.quit()
 
     finally:
         if main_loop.is_running():
@@ -205,8 +320,9 @@ def main():
         cv2.destroyAllWindows()
         for tid, score in sorted(app_state.id_total.items()):
             print(f"ID {tid}: {score}")
-        if writer is not None:
-            writer.release()
+        # if writer is not None:
+        #     writer.release()
+        user_app.pipeline.set_state(Gst.State.NULL)
         print("[info] Finished.")
 
 if __name__ == "__main__":
