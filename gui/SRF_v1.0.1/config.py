@@ -6,7 +6,7 @@ import os
 class ControlPageIndex:
     MAIN                    = 0
     VIDEO_SELECT            = 1
-    BACKGROUND_VIDEO_PLAY   = 2
+    GAME_PLAY               = 2
     SCORE                   = 3
     AVATAR_SELECT           = 4
     AVATAR_LOADING          = 5
@@ -27,7 +27,15 @@ class ViewPageIndex:
 # 리소스 경로
 # -------------------------------
 class SourcePath:
+    # config.py 파일이 있는 디렉토리 절대 경로
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_DIR = os.path.join(BASE_DIR, "resource")
+
+    VIDEOS_DIR = os.path.join(RESOURCE_DIR, "videos")
+
     BG_PATH = ""   # 필요시 여기에 배경 동영상 경로 지정
+    TITLE_IMAGE = os.path.join(RESOURCE_DIR, "title_image_4.png")
+    THUMBNAIL_BTN = os.path.join(BASE_DIR, "resource/button1.png")
 
 
 # -------------------------------
