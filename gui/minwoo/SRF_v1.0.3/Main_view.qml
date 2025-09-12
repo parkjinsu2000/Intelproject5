@@ -86,9 +86,11 @@ ApplicationWindow {
                 console.log("⏹️ 전경 영상 재생 완료");
                 foregroundVideoOutput.visible = false;
                 foregroundMediaPlayer.source = ""; // 비디오 언로드
+                backgroundMediaPlayer.volume = 0.5; // 배경음 원래대로
             } else if (status === MediaPlayer.InvalidMedia) {
                 console.log("❌ 잘못된 전경 영상 경로:", foregroundMediaPlayer.source)
                 foregroundVideoOutput.visible = false;
+                backgroundMediaPlayer.volume = 0.5; // 배경음 원래대로
             }
         }
     }
@@ -97,6 +99,7 @@ ApplicationWindow {
     // 🔧 외부에서 호출 가능한 함수
     function playVideo(videoPath) {
         console.log("📺 영상 경로 변경 요청:", videoPath)
+        backgroundMediaPlayer.volume = 0.1 // 배경음 줄이기
         foregroundMediaPlayer.stop()
         foregroundMediaPlayer.source = videoPath
         foregroundVideoOutput.visible = true

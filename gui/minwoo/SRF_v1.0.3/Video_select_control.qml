@@ -104,11 +104,11 @@ Rectangle {
     ListModel {
         id: videoModel
         // ... (기존 ListElement 데이터 유지) ...
-        ListElement { name: "썸네일 1"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/biggibiggi.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/biggibiggi.png" }
-        ListElement { name: "썸네일 2"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/frog.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/frog.png" }
-        ListElement { name: "썸네일 3"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/jump.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/jump.png" }
-        ListElement { name: "썸네일 4"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/naruto.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/naruto.png" }
-        ListElement { name: "썸네일 5"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/sodapop.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/sodapop.png" }
-        ListElement { name: "썸네일 6"; videoPath: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/tokatoka.mp4"; thumbnail: "file:///home/ubuntu04/Intelproject5/gui/minwoo/SRF_v1.0.3/resource/videos/tokatoka.png" }
+        ListElement { name: "썸네일 1"; videoPath: "resource/videos/biggibiggi.mp4"; thumbnail: "resource/videos/biggibiggi.png" }
+        ListElement { name: "썸네일 2"; videoPath: "resource/videos/frog.mp4"; thumbnail: "resource/videos/frog.png" }
+        ListElement { name: "썸네일 3"; videoPath: "resource/videos/jump.mp4"; thumbnail: "resource/videos/jump.png" }
+        ListElement { name: "썸네일 4"; videoPath: "resource/videos/naruto.mp4"; thumbnail: "resource/videos/naruto.png" }
+        ListElement { name: "썸네일 5"; videoPath: "resource/videos/sodapop.mp4"; thumbnail: "resource/videos/sodapop.png" }
+        ListElement { name: "썸네일 6"; videoPath: "resource/videos/tokatoka.mp4"; thumbnail: "resource/videos/tokatoka.png" }
     }
 }
