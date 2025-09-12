@@ -153,9 +153,11 @@ def main():
     print(f"[info] {len(app_state.ref_frames_cache)} reference frames cached.")
 
     # 2) Hailo GStreamer reference pass
+    print("[info] Reference preprocess pose extraction start.")
     original_argv = sys.argv[:]
     sys.argv = [original_argv[0], '--input', args.ref]
     ref_app = GStreamerPoseEstimationApp(ref_callback, app_state)
+    #TODO wtf
     ref_app.run()
     sys.argv = original_argv
     print("[info] Reference preprocessing done. Poses extracted.")
