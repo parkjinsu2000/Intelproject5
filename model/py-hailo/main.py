@@ -260,10 +260,16 @@ def main():
         mtype = message.type
         if mtype == Gst.MessageType.EOS:
             print(f"\n[info] Received {Gst.MessageType.get_name(mtype)}, quitting user loop.")
+            app_state.running = False
+            try:
+                user_app.pipeline.set_stae(Gst.State.NULL)
+            except Exception as e:
+                print(f"[warning] pipeline NULL state failed on EOS: {e}")
             main_loop.quit()
         elif mtype == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print(f"\n[error] GStreamer error: {err}, {debug}")
+            app_state.running = False
             main_loop.quit()
 
     bus.connect("message", on_user_message)
@@ -317,12 +323,21 @@ def main():
         if main_loop.is_running():
             main_loop.quit()
         gst_thread.join(timeout=5)
+
         cv2.destroyAllWindows()
-        for tid, score in sorted(app_state.id_total.items()):
-            print(f"ID {tid}: {score}")
+
+        try:
+            if user_app.pipeline:
+                user_app.pipeline.set_state(Gst.State.NULL)
+        except Exception as e:
+            print(f"[warning] pipeline NULL state failed: {e}")
+
         # if writer is not None:
         #     writer.release()
-        user_app.pipeline.set_state(Gst.State.NULL)
+
+        for tid, score in sorted(app_state.id_total.items()):
+            print(f"ID {tid}: {score}")
+
         print("[info] Finished.")
 
 if __name__ == "__main__":
