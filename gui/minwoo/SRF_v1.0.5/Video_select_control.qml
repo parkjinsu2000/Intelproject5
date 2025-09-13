@@ -150,7 +150,7 @@ Rectangle {
     // 🔹 비디오 리스트 모델 (jsonPath 추가)
     ListModel {
         id: videoModel
-        ListElement { name: "빼빼빼기"; videoPath: "resource/videos/biggibiggi.mp4"; thumbnail: "resource/videos/biggibiggi.png"; jsonPath: "resource/videos/biggibiggi.json" }
+        ListElement { name: "삐끼삐끼"; videoPath: "resource/videos/biggibiggi.mp4"; thumbnail: "resource/videos/biggibiggi.png"; jsonPath: "resource/videos/biggibiggi.json" }
         ListElement { name: "개구리"; videoPath: "resource/videos/frog.mp4"; thumbnail: "resource/videos/frog.png"; jsonPath: "resource/videos/frog.json" }
         ListElement { name: "뛰어"; videoPath: "resource/videos/jump.mp4"; thumbnail: "resource/videos/jump.png"; jsonPath: "resource/videos/jump.json" }
         // naruto.json이 없으므로 리스트에서 제외
