@@ -6,8 +6,8 @@ Item {
     id: avatarSelection
 
     property int currentIndex: 0
-    property var avatars: [narutoAvatar, sinAvatar, rengokuAvatar, rumiAvatar]
-    property var players: [narutoPlayer, sinPlayer, rengokuPlayer, rumiPlayer]
+    property var avatars: [narutoAvatar, daddyAvatar, renAvatar, rumiAvatar]
+    property var players: [narutoPlayer, daddyPlayer, renPlayer, rumiPlayer]
     function updateSelection() {
         for (var i = 0; i < avatars.length; i++) {
             var avatar = avatars[i];
@@ -93,7 +93,7 @@ Item {
 
             // 신형만
             ColumnLayout {
-                id: sinAvatar
+                id: daddyAvatar
                 spacing: 10
                 Behavior on opacity { NumberAnimation { duration: 200 } }
                 Behavior on scale { ScaleAnimator { duration: 200 } }
@@ -106,12 +106,12 @@ Item {
 
                     VideoOutput {
                         anchors.fill: parent
-                        source: sinPlayer
+                        source: daddyPlayer
                     }
 
                     MediaPlayer {
-                        id: sinPlayer
-                        source: "resource/sin_select.mp4"
+                        id: daddyPlayer
+                        source: "resource/daddy_select.mp4"
                         loops: MediaPlayer.Infinite
                         autoPlay: false
                     }
@@ -126,7 +126,7 @@ Item {
 
             // 렌고쿠
             ColumnLayout {
-                id: rengokuAvatar
+                id: renAvatar
                 spacing: 10
                 Behavior on opacity { NumberAnimation { duration: 200 } }
                 Behavior on scale { ScaleAnimator { duration: 200 } }
@@ -139,12 +139,12 @@ Item {
 
                     VideoOutput {
                         anchors.fill: parent
-                        source: rengokuPlayer
+                        source: renPlayer
                     }
 
                     MediaPlayer {
-                        id: rengokuPlayer
-                        source: "resource/rengoku_select.mp4"
+                        id: renPlayer
+                        source: "resource/ren_select.mp4"
                         loops: MediaPlayer.Infinite
                         autoPlay: false
                     }
