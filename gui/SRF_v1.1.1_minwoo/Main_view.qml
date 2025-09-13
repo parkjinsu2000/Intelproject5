@@ -41,6 +41,21 @@ ApplicationWindow {
         }
     }
 
+    // Python의 ControlBridge에서 오는 신호를 처리
+    Connections {
+        target: controlBridge
+        function onAvatarNext() {
+            if (avatarLoader.item) {
+                avatarLoader.item.selectNext()
+            }
+        }
+        function onAvatarPrevious() {
+            if (avatarLoader.item) {
+                avatarLoader.item.selectPrevious()
+            }
+        }
+    }
+
     // 배경 이미지 (게임 중 표시)
     Image {
         id: gameBackgroundImage
@@ -129,7 +144,7 @@ ApplicationWindow {
         source: {
             if (finalScore >= 80) {
                 return "resource/score_S.png";
-            } else if (finalScore >= 60) {
+            } else if (finalScore >= 65) {
                 return "resource/score_A.png";
             } else {
                 return "resource/score_B.png";
@@ -145,7 +160,7 @@ ApplicationWindow {
     // ⏱️ 랭크 이미지를 숨기는 타이머
     Timer {
         id: hideRankTimer
-        interval: 4000 // 4초
+        interval: 10000 // 10초
         repeat: false
         onTriggered: {
             rootWindow.finalScore = -1
@@ -211,25 +226,5 @@ ApplicationWindow {
     function showAvatarScreen() {
         console.log("🔄 화면 전환: AvatarSelection.qml 로드")
         avatarLoader.source = "AvatarSelection.qml"
-    }
-
-    function showAvatarLoading() {
-        console.log("🔄 화면 전환: AvatarLoading.qml 로드")
-        avatarLoader.source = "AvatarLoading.qml"
-    }
-
-    function clearAvatarLoader() {
-        console.log("🧹 아바타 로더 초기화")
-        avatarLoader.source = ""
-    }
-
-    function playConvertedVideoInMain(videoPath) {
-        console.log("🎬 변환된 비디오 재생 (메인):", videoPath)
-        clearAvatarLoader()
-        gameBackgroundImage.visible = false
-        backgroundVideoOutput.visible = true
-        backgroundMediaPlayer.source = videoPath
-        backgroundMediaPlayer.loops = 1 // 1번만 재생
-        backgroundMediaPlayer.play()
     }
 }
