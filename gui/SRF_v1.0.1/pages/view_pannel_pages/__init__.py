@@ -1,0 +1,7 @@
+from .Avatar_loading_view_panel_page import AvatarLoadingViewPanelPage
+from .Avatar_select_veiw_panel_page import AvatarSelectViewPanelPage
+from .Game_play_view_panel_page import GamePlayViewPanelPage
+from .Video_select_view_panel_page import VideoSelectViewPanelPage
+from .converted_avatar_video_view_panel_page import ConvertedAvatarVideoViewPanelPage
+from .main_page_view_panel_page import MainPageViewPanelPage
+from .Score_view_panel_page import ScoreViewPanelPage

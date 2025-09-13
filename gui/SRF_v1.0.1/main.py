@@ -8,6 +8,7 @@ from config import *
 from pages.control_pannel_pages import *
 from pages.view_pannel_pages import *
 
+
 # -------------------------------
 # Control 윈도우
 # -------------------------------
@@ -98,6 +99,7 @@ def main():
 
     video_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/background_video_large.mp4"
     image_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/title.png"
+
 
     controller = MainController(video_path=video_file, image_path=image_file)
 
