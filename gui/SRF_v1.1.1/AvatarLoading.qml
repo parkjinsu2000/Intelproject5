@@ -1,16 +1,21 @@
 import QtQuick 2.15
 import QtMultimedia 5.15
-import "./common"
 
-FullWindow {
-    id: root
+Item {
+    id: avatarLoading
 
-    Video {
-        id: video
-        anchors.fill: parent
+    anchors.fill: parent
+
+    MediaPlayer {
+        id: loadingPlayer
         source: "resource/output.mp4"
-        loops: Video.Infinite
         autoPlay: true
-        fillMode: Video.PreserveAspectCrop
+        loops: MediaPlayer.Infinite
+    }
+
+    VideoOutput {
+        anchors.fill: parent
+        source: loadingPlayer
+        fillMode: VideoOutput.PreserveAspectCrop
     }
 }

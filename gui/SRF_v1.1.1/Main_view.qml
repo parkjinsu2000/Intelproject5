@@ -212,4 +212,9 @@ ApplicationWindow {
         console.log("🔄 화면 전환: AvatarSelection.qml 로드")
         avatarLoader.source = "AvatarSelection.qml"
     }
+
+    function showAvatarLoading() {
+        console.log("🔄 화면 전환: AvatarLoading.qml 로드")
+        avatarLoader.source = "AvatarLoading.qml"
+    }
 }

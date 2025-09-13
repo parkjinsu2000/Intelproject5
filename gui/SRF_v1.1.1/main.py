@@ -82,6 +82,11 @@ class ControlBridge(QObject):
         self.showAvatarScreen.emit()
         
     @pyqtSlot()
+    def startAvatarConversion(self):
+        print("🔄 아바타 변환 시작 신호 수신")
+        QMetaObject.invokeMethod(self.view_window, "showAvatarLoading", Qt.QueuedConnection)
+
+    @pyqtSlot()
     def goToMainMenu(self):
         print("🎬 메인 메뉴로 돌아갑니다.")
         QMetaObject.invokeMethod(self.view_window, "resetToInitialState", Qt.QueuedConnection)
