@@ -9,9 +9,10 @@ ApplicationWindow {
     id: rootWindow
     property var targetScreen
     property int finalScore: -1
+    property bool videoEnabled: true // 비디오 배경 활성화 여부
 
     visible: true
-    visibility: "FullScreen"
+    // visibility: "FullScreen"
     color: "black"
 
     // ✅ targetScreen이 전달되면 위치와 해상도 설정
@@ -40,6 +41,16 @@ ApplicationWindow {
         }
     }
 
+    // 배경 이미지 (게임 중 표시)
+    Image {
+        id: gameBackgroundImage
+        source: "resource/background_control.png"
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
+        visible: false // 초기에는 숨김
+        z: 0
+    }
+
     // 🎬 배경 영상 출력
     VideoOutput {
         id: backgroundVideoOutput
@@ -60,7 +71,9 @@ ApplicationWindow {
         onStatusChanged: {
             if (status === MediaPlayer.Loaded) {
                 console.log("✅ 배경 영상 로딩 완료 → 재생 시작")
-                backgroundMediaPlayer.play()
+                if (rootWindow.videoEnabled) {
+                    backgroundMediaPlayer.play()
+                }
             } else if (status === MediaPlayer.InvalidMedia) {
                 console.log("❌ 잘못된 배경 영상 경로:", backgroundMediaPlayer.source)
             }
@@ -68,8 +81,10 @@ ApplicationWindow {
 
         onPlaybackStateChanged: {
             if (playbackState === MediaPlayer.Stopped) {
-                console.log("⏹️ 배경 영상 멈춤 상태 → 다시 재생 시도")
-                backgroundMediaPlayer.play()
+                if (rootWindow.videoEnabled) {
+                    console.log("⏹️ 배경 영상 멈춤 상태 → 다시 재생 시도")
+                    backgroundMediaPlayer.play()
+                }
             }
         }
     }
@@ -139,6 +154,14 @@ ApplicationWindow {
 
 
     // 🔧 외부에서 호출 가능한 함수
+    function showBackgroundImage() {
+        console.log("🖼️ 배경을 이미지로 변경")
+        rootWindow.videoEnabled = false
+        backgroundMediaPlayer.stop()
+        backgroundVideoOutput.visible = false
+        gameBackgroundImage.visible = true
+    }
+
     function playVideo(videoPath) {
         console.log("📺 영상 경로 변경 요청:", videoPath)
         backgroundMediaPlayer.volume = 0.1 // 배경음 줄이기
@@ -161,7 +184,7 @@ ApplicationWindow {
 
     function resumeBackgroundVideo() {
         console.log("▶️ 배경 영상 다시 재생 시도")
-        if (backgroundMediaPlayer.playbackState !== MediaPlayer.PlayingState) {
+        if (rootWindow.videoEnabled && backgroundMediaPlayer.playbackState !== MediaPlayer.PlayingState) {
             backgroundMediaPlayer.play();
         }
     }

@@ -85,8 +85,10 @@ class ControlBridge(QObject):
 
         print(f"🚀 싱글 플레이어 모드 시작: {videoPath}")
         self.gameStarted.emit() # 게임 시작 신호 전송
-        self.view_window.muteBackground(True)
-        self.view_window.stopForegroundVideo()
+
+        # 배경을 비디오에서 이미지로 변경
+        QMetaObject.invokeMethod(self.view_window, "showBackgroundImage", Qt.QueuedConnection)
+        QMetaObject.invokeMethod(self.view_window, "stopForegroundVideo", Qt.QueuedConnection)
 
         # SinglePlayerApp에 필요한 인자(args) 생성
         json_path = videoPath.replace(".mp4", ".json")
@@ -120,8 +122,7 @@ class ControlBridge(QObject):
             print(f"Final score from game window: {score}")
             self.showRank.emit(int(score))
         self.gameFinished.emit() # 게임 종료 신호 전송
-        self.view_window.muteBackground(False)
-        self.view_window.resumeBackgroundVideo() # 배경 영상 다시 재생
+        # 배경 비디오를 다시 시작하지 않음
         self.game_window = None
 
 
@@ -157,9 +158,27 @@ def main():
     for i, screen in enumerate(screens):
         print(f"🖥️ 모니터 {i}: name={screen.name()}, geometry={screen.geometry()}")
 
+    # 해상도로 특정 모니터 찾기
+    screen_for_view = None
+    screen_for_control = None
+
+    if len(screens) > 1:
+        for screen in screens:
+            geo = screen.geometry()
+            if geo.width() == 2560 and geo.height() == 1440:
+                screen_for_view = screen
+                print(f"✅ Main_view용 모니터 (2560x1440) 찾음: {screen.name()}")
+            elif geo.width() == 1920 and geo.height() == 1080:
+                screen_for_control = screen
+                print(f"✅ Main_control용 모니터 (1920x1080) 찾음: {screen.name()}")
+
+    # 특정 모니터를 찾지 못했을 경우의 대비책
+    if not screen_for_view or not screen_for_control:
+        print("⚠️ 특정 해상도의 모니터를 찾지 못했습니다. 기본 설정(0, 1)을 사용합니다.")
+        screen_for_view = screens[0]
+        screen_for_control = screens[0] if len(screens) < 2 else screens[1]
+
     single_monitor_mode = len(screens) < 2
-    screen_for_view = screens[0]
-    screen_for_control = screens[1] if not single_monitor_mode else screens[0]
 
     view_engine = QQmlApplicationEngine()
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
@@ -170,6 +189,8 @@ def main():
         sys.exit(-1)
 
     view_window = view_engine.rootObjects()[0]
+    view_window.setGeometry(screen_for_view.geometry())
+    view_window.show()
     print(f"✅ Main_view.qml 로드 완료")
 
     main_engine = QQmlApplicationEngine()
@@ -200,7 +221,8 @@ def main():
         main_window.show()
         print("✅ Main_control.qml을 창 모드로 띄움")
     else:
-        main_window.showFullScreen()
+        main_window.setGeometry(screen_for_control.geometry())
+        main_window.show()
         print(f"✅ Main_control.qml 모니터 {screens.index(screen_for_control)}에 전체화면으로 띄움")
     
     sys.exit(app.exec_())
