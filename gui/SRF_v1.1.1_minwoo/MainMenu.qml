@@ -7,7 +7,7 @@ Item {
     // 🔹 버튼이 포함된 UI
     ColumnLayout {
         anchors.centerIn: parent
-        spacing: 40
+        spacing: 300
 
         // 🔸 1인 모드 버튼
         Button {
@@ -16,7 +16,7 @@ Item {
             background: Rectangle { color: "#DD000000"; radius: 12 }
             contentItem: Text {
                 text: "🕹️ 1인 모드"
-                font.pixelSize: 32
+                font.pixelSize: 100
                 color: "white"
                 anchors.centerIn: parent
                 layer.enabled: true
@@ -45,7 +45,7 @@ Item {
             background: Rectangle { color: "#DD000000"; radius: 12 }
             contentItem: Text {
                 text: "👥 2인 모드"
-                font.pixelSize: 32
+                font.pixelSize: 100
                 color: "white"
                 anchors.centerIn: parent
                 layer.enabled: true

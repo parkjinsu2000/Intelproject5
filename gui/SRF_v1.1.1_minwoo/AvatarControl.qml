@@ -52,7 +52,6 @@ Item {
                 }
                 onClicked: {
                     console.log("변환하기 버튼 클릭")
-                    controlBridge.startAvatarConversion()
                 }
             }
         }
@@ -100,7 +99,6 @@ Item {
                 }
                 onClicked: {
                     console.log("메인으로 버튼 클릭")
-                    controlBridge.showMainMenu()
                 }
             }
         }
