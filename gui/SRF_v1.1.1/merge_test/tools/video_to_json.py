@@ -22,6 +22,11 @@ def create_json_from_video(video_path, model_path, output_json, imgsz, device, u
         print(f"Error: Could not open video file {video_path}")
         return
 
+    # 비디오 속성 가져오기
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
     frames = []
     frame_index = 0
     
@@ -35,17 +40,14 @@ def create_json_from_video(video_path, model_path, output_json, imgsz, device, u
             print(f"Processing frame {frame_index}...")
             kps, conf = infer_pose(frame)
             
-            # Convert numpy arrays to lists for JSON serialization
             if kps is not None:
                 kps_list = kps.tolist()
             else:
-                # kps_list = None
                 kps_list = [[float('nan'), float('nan')]] * 17
                 
             if conf is not None:
                 conf_list = conf.tolist()
             else:
-                # conf_list = None
                 conf_list = [float('nan')] * 17
                 
             frames.append({
@@ -58,33 +60,38 @@ def create_json_from_video(video_path, model_path, output_json, imgsz, device, u
 
     cap.release()
     
-    os.makedirs(os.path.dirname(output_json), exist_ok=True)  # 디렉터리 자동 생성
+    # 출력 데이터 구성
+    output_data = {
+        "video_size": [width, height],
+        "fps": fps,
+        "stride": step,
+        "frames": frames
+    }
+    
+    os.makedirs(os.path.dirname(output_json), exist_ok=True)
     with open(output_json, 'w') as f:
-        json.dump({"frames": frames}, f, indent=4)
+        json.dump(output_data, f, indent=4)
     
     print(f"Successfully saved {len(frames)} frames to {output_json}")
 
 if __name__ == "__main__":
-    # 💡 You can set the video and output paths directly here
-    video_dir = "resources/videos"
-    video_filename = "frog.mp4" # 👈 여기에 동영상 파일 이름을 입력하세요
-    video_path = os.path.join(video_dir, video_filename)
+    parser = argparse.ArgumentParser(description='Create pose JSON from video.')
+    parser.add_argument('--video_path', type=str, required=True, help='Path to the input video file.')
+    parser.add_argument('--output_json', type=str, required=True, help='Path to the output JSON file.')
+    parser.add_argument('--model_path', type=str, default='yolov8n-pose.pt', help='Path to the YOLO model.')
+    parser.add_argument('--imgsz', type=int, default=320, help='Image size for inference.')
+    parser.add_argument('--device', type=str, default=None, help='Device to use (e.g., "cpu", "cuda").')
+    parser.add_argument('--step', type=int, default=1, help='Process every Nth frame.')
+    args = parser.parse_args()
+
+    if args.device is None:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    output_json = os.path.join(video_dir, "frog.json") # 👈 여기에 출력할 JSON 파일 이름을 입력하세요
-    
-    # Optional arguments, you can change them as needed
-    model_path = "yolov8n-pose.pt"
-    imgsz = 320
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    use_half = False
-    step = 10
-    
-    if not output_json.endswith('.json'):
-        output_json += '.json'
-    
-    if os.path.exists(output_json):
-        print(f"Warning: Output file '{output_json}' already exists. It will be overwritten.")
-        
+    use_half = (args.device == "cuda")
+
+    if os.path.exists(args.output_json):
+        print(f"Warning: Output file '{args.output_json}' already exists. It will be overwritten.")
+
     create_json_from_video(
-        video_path, model_path, output_json, imgsz, device, use_half, step
+        args.video_path, args.model_path, args.output_json, args.imgsz, args.device, use_half, args.step
     )

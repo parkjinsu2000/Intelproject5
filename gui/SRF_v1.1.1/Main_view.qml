@@ -217,4 +217,9 @@ ApplicationWindow {
         console.log("🔄 화면 전환: AvatarLoading.qml 로드")
         avatarLoader.source = "AvatarLoading.qml"
     }
+
+    function clearAvatarLoader() {
+        console.log("🧹 아바타 로더 초기화")
+        avatarLoader.source = ""
+    }
 }
