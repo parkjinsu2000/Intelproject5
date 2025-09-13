@@ -5,6 +5,7 @@ import cv2
 import json
 import numpy as np
 import time
+import os
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QSizePolicy,
     QSplitter, QMessageBox, QGraphicsOpacityEffect, QHBoxLayout
@@ -36,6 +37,14 @@ class SinglePlayerApp(BasePoseApp):
         
         self.button_container = None
         self.game_over_flag = False
+        self.cam_kps = None # 포즈 감지 결과를 저장할 변수
+
+        # 영상 녹화 관련 변수
+        self.video_writer = None
+        resource_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'resource')
+        if not os.path.exists(resource_dir):
+            os.makedirs(resource_dir)
+        self.output_path = os.path.join(resource_dir, 'output.mp4')
 
         # 포즈 감지 모델 로딩
         self.infer_pose = make_infer(self.model, self.args, self.use_half)
@@ -82,8 +91,6 @@ class SinglePlayerApp(BasePoseApp):
         self.score_history_length = 3
         self.follow_delay_ms = 200
 
-        # 부모 클래스에서 이미 연결되었으므로 중복 연결을 제거합니다.
-        # self.count_timer.timeout.connect(self.update_countdown)
         self.count_timer.start(1000)
         self.score_timer.timeout.connect(self.calculate_score)
 
@@ -100,44 +107,65 @@ class SinglePlayerApp(BasePoseApp):
             self.overlay_label.setText(str(self.count))
         elif self.count == 0:
             self.overlay_label.setText("START")
+            # 녹화 시작
+            if self.cap and self.cap.isOpened():
+                width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = self.cap.get(cv2.CAP_PROP_FPS)
+                if fps == 0:
+                    fps = 30 # 기본 FPS
+                self.video_writer = cv2.VideoWriter(self.output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+                print(f"🎥 웹캠 녹화를 시작합니다. 저장 경로: {self.output_path}")
         else:
             self.overlay_label.hide()
             self.count_timer.stop()
-            # QStackedWidget을 사용하여 비디오 화면으로 전환
             self.video_stack.setCurrentWidget(self.video_widget)
             QTimer.singleShot(0, self.equalize_splitter)
             self.play_video()
-            # 포즈 스코어 계산 주기를 10프레임에 해당하는 333ms로 변경합니다.
             self.score_timer.start(333)
 
     def update_frame(self):
-        """웹캠 프레임을 업데이트하고 포즈 감지 결과를 화면에 표시합니다."""
+        """웹캠 프레임을 업데이트하고, 녹화하며, 포즈 감지를 수행합니다."""
         if self.game_over_flag:
             self.display_final_score()
             return
-        
-        super().update_frame()
-        # 여기에 포즈 그리기 로직 추가 (추가적인 파일에서 import 필요)
-        self.feedback_label.setGeometry(
-        10, 10, int(self.cam_label.width() / 1.5), int(self.cam_label.height() / 3)
-    )
-         # 글씨 크기를 웹캠 라벨 높이에 비례하여 설정
-        self.feedback_label.setFont(QFont("Arial", int(self.cam_label.height() / 15), QFont.Bold))
 
-
-    def calculate_score(self):
-        """웹캠 프레임과 참고 포즈를 비교하여 점수를 계산합니다."""
-        if not self.cap or not self.cap.isOpened() or self.count > 0 or self.game_over_flag:
+        if not self.cap or not self.cap.isOpened():
             return
 
         ret, frame = self.cap.read()
         if not ret or frame is None:
+            print("Error: 웹캠에서 프레임을 읽어올 수 없습니다.")
             return
 
-        cam_kps, cam_conf = self.infer_pose(frame)
+        # 프레임 녹화
+        if self.video_writer:
+            self.video_writer.write(frame)
+
+        # 게임 시작 후에만 포즈 감지 수행
+        if self.count <= 0:
+            self.cam_kps, _ = self.infer_pose(frame)
+
+        # 화면에 프레임 표시 (BasePoseApp 로직과 유사)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = frame_rgb.shape
+        bytes_per_line = ch * w
+        qt_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qt_image)
+        self.cam_label.setPixmap(pixmap.scaled(self.cam_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        # 피드백 라벨 위치 및 폰트 업데이트
+        self.feedback_label.setGeometry(10, 10, int(self.cam_label.width() / 1.5), int(self.cam_label.height() / 3))
+        self.feedback_label.setFont(QFont("Arial", int(self.cam_label.height() / 15), QFont.Bold))
+
+    def calculate_score(self):
+        """update_frame에서 감지된 포즈를 사용하여 점수를 계산합니다."""
+        if self.cam_kps is None or self.count > 0 or self.game_over_flag:
+            return
+
         current_score = -1.0
         
-        if cam_kps is not None and len(self.reference_data) > 0:
+        if len(self.reference_data) > 0:
             delayed_position = self.player.position() - self.follow_delay_ms
             if delayed_position < 0: delayed_position = 0
             ref_frame_index = int(delayed_position / 1000 * 30)
@@ -147,7 +175,7 @@ class SinglePlayerApp(BasePoseApp):
                 ref_data = self.reference_data[ref_data_index]
                 ref_kps = np.array(ref_data["kps"])
 
-                cam_kps_norm = normalize_keypoints(cam_kps)
+                cam_kps_norm = normalize_keypoints(self.cam_kps)
                 ref_kps_norm = normalize_keypoints(ref_kps)
 
                 vec_ref = pose_to_anglevec(ref_kps_norm)
@@ -185,10 +213,25 @@ class SinglePlayerApp(BasePoseApp):
 
     def handle_video_state(self, state):
         """부모 클래스의 비디오 상태 감지 메서드를 오버라이드하여 게임 종료를 처리합니다."""
-        if state == QMediaPlayer.StoppedState and self.player.duration() > 0: # 재생이 실제로 끝났는지 확인
+        if state == QMediaPlayer.StoppedState and self.player.duration() > 0:
             print(f"🏁 비디오 재생 종료. 최종 점수: {int(self.final_score)}")
             self.game_over_flag = True
-            self.close() # 창을 닫습니다.
+            
+            # 녹화 종료
+            if self.video_writer:
+                self.video_writer.release()
+                self.video_writer = None
+                print(f"✅ 영상이 성공적으로 저장되었습니다: {self.output_path}")
+
+            self.close()
+
+    def closeEvent(self, event):
+        """창이 닫힐 때 호출되는 이벤트 핸들러."""
+        if self.video_writer:
+            self.video_writer.release()
+            self.video_writer = None
+            print("ℹ️ 창이 닫혀 녹화를 중지하고 영상을 저장했습니다.")
+        super().closeEvent(event)
 
     def display_final_score(self):
         """최종 점수를 화면에 그립니다."""
@@ -201,7 +244,6 @@ class SinglePlayerApp(BasePoseApp):
         pixmap.fill(QColor(0, 0, 0))
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.TextAntialiasing)
         
         title_font = QFont("Arial", 40, QFont.Bold)
         painter.setFont(title_font)
