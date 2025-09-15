@@ -6,8 +6,8 @@ Item {
     id: avatarSelection
 
     property int currentIndex: 0
-    property var avatars: [narutoAvatar, daddyAvatar, renAvatar, rumiAvatar]
-    property var players: [narutoPlayer, daddyPlayer, renPlayer, rumiPlayer]
+    property var avatars: [narutoAvatar, dadyAvatar, renAvatar, rumiAvatar]
+    property var players: [narutoPlayer, dadyPlayer, renPlayer, rumiPlayer]
     function updateSelection() {
         for (var i = 0; i < avatars.length; i++) {
             var avatar = avatars[i];
@@ -93,7 +93,7 @@ Item {
 
             // 신형만
             ColumnLayout {
-                id: daddyAvatar
+                id: dadyAvatar
                 spacing: 10
                 Behavior on opacity { NumberAnimation { duration: 200 } }
                 Behavior on scale { ScaleAnimator { duration: 200 } }
@@ -106,12 +106,12 @@ Item {
 
                     VideoOutput {
                         anchors.fill: parent
-                        source: daddyPlayer
+                        source: dadyPlayer
                     }
 
                     MediaPlayer {
-                        id: daddyPlayer
-                        source: "resource/daddy_select.mp4"
+                        id: dadyPlayer
+                        source: "resource/dady_select.mp4"
                         loops: MediaPlayer.Infinite
                         autoPlay: false
                     }
