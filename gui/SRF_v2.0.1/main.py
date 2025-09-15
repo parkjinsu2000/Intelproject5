@@ -470,17 +470,24 @@ def main():
     screen_for_control = None
 
     if len(screens) > 1:
+        # Try to find HDMI for control screen
         for screen in screens:
-            geo = screen.geometry()
-            if geo.width() == 2560 and geo.height() == 1440:
-                screen_for_view = screen
-                print(f"✅ Main_view용 모니터 (2560x1440) 찾음: {screen.name()}")
-            elif geo.width() == 1920 and geo.height() == 1080:
+            if "HDMI" in screen.name():
                 screen_for_control = screen
-                print(f"✅ Main_control용 모니터 (1920x1080) 찾음: {screen.name()}")
+                print(f"✅ Control screen found by name: {screen.name()}")
+                break
+        
+        # Assign the other screen to view
+        if screen_for_control:
+            for screen in screens:
+                if screen != screen_for_control:
+                    screen_for_view = screen
+                    print(f"✅ View screen assigned: {screen.name()}")
+                    break
 
+    # Fallback logic if the above fails
     if not screen_for_view or not screen_for_control:
-        print("⚠️ 특정 해상도의 모니터를 찾지 못했습니다. 기본 설정(0, 1)을 사용합니다.")
+        print("⚠️ Could not find HDMI monitor or assign screens correctly. Using default order.")
         screen_for_view = screens[0]
         screen_for_control = screens[0] if len(screens) < 2 else screens[1]
 
@@ -545,7 +552,7 @@ def main():
         print("✅ Main_control.qml을 창 모드로 띄움")
     else:
         main_window.setGeometry(screen_for_control.geometry())
-        main_window.show()
+        main_window.showFullScreen()
         print(f"✅ Main_control.qml 모니터 {screens.index(screen_for_control)}에 전체화면으로 띄움")
     
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(main_window, "showAvatarScreen", Qt.QueuedConnection))
