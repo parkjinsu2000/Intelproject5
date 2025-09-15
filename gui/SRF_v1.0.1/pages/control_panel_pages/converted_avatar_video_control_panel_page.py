@@ -12,6 +12,7 @@ from pages.control_panel_pages.background_video_play_control_panel import Backgr
 캐릭터가 변환된 영상을 보여주는 페이지의 컨트롤 패널
 """
 
+<<<<<<< HEAD
 <<<<<<< HEAD:gui/SRF_v1.0.1/pages/control_panel_pages/converted_avatar_video_control_panel_page.py
 class ConvertedAvatarVideoControlPanelPage(QWidget):
     def __init__(self, video_path=None, screen_index=0):
@@ -19,6 +20,10 @@ class ConvertedAvatarVideoControlPanelPage(QWidget):
 class ConvertedAvatarVideoControlPannelPage(QWidget):
     def __init__(self, video_path=None, screen_index=):
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353:gui/SRF_v1.0.1/pages/control_pannel_pages/converted_avatar_video_control_pannel_page.py
+=======
+class ConvertedAvatarVideoControlPanelPage(QWidget):
+    def __init__(self, video_path=None, screen_index=0):
+>>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
         super().__init__()
 
         # 메인 레이아웃

@@ -10,13 +10,12 @@ class AvatarSelectViewPanelPage(QWidget):
 
     def initUI(self):
         # 윈도우 기본 설정
-        self.setWindowTitle('4분할 화면 레이아웃')
-        self.setGeometry(100, 100, 1000, 700) # 창 크기 설정
+        # self.setWindowTitle('4분할 화면 레이아웃')
+        # self.setGeometry(100, 100, 1000, 700) # 창 크기 설정
 
         # 메인 수평 레이아웃 (전체 화면을 가로로 분할)
         main_layout = QHBoxLayout()
-        main_layout.setSpacing(10) # 패널 사이 가로 간격
-        main_layout.setContentsMargins(10, 10, 10, 10) # 창 가장자리 여백
+        main_layout.setContentsMargins(0, 0, 0, 0) # 창 가장자리 여백
 
         # 각 패널 위젯 생성 및 레이아웃 설정
         panel_texts = ["아바타 1\n예시", "아바타 2\n예시", "아바타 3\n예시", "아바타 4\n예시"]

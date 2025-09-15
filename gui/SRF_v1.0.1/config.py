@@ -6,7 +6,11 @@ import os
 class ControlPageIndex:
     MAIN                    = 0
     VIDEO_SELECT            = 1
+<<<<<<< HEAD
     BACKGROUND_VIDEO_PLAY   = 2
+=======
+    GAME_PLAY               = 2
+>>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
     SCORE                   = 3
     AVATAR_SELECT           = 4
     AVATAR_LOADING          = 5
@@ -27,7 +31,19 @@ class ViewPageIndex:
 # 리소스 경로
 # -------------------------------
 class SourcePath:
+<<<<<<< HEAD
     BG_PATH = ""   # 필요시 여기에 배경 동영상 경로 지정
+=======
+    # config.py 파일이 있는 디렉토리 절대 경로
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_DIR = os.path.join(BASE_DIR, "resource")
+
+    VIDEOS_DIR = os.path.join(RESOURCE_DIR, "videos")
+
+    BG_PATH = ""   # 필요시 여기에 배경 동영상 경로 지정
+    TITLE_IMAGE = os.path.join(RESOURCE_DIR, "title_image_4.png")
+    THUMBNAIL_BTN = os.path.join(BASE_DIR, "resource/button1.png")
+>>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
 
 
 # -------------------------------
@@ -37,4 +53,8 @@ class MonitorIndex:
     # ⚠️ 모니터 인덱스는 OS/환경마다 달라질 수 있음
     # QGuiApplication.screens() 로 가져온 순서대로 0,1,2... 로 번호가 매겨짐
     VIEW = 0       # View 패널이 표시될 모니터
+<<<<<<< HEAD
     CONTROL = 1    # Control 패널이 표시될 모니터
+=======
+    CONTROL = 1    # Control 패널이 표시될 모니터
+>>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538

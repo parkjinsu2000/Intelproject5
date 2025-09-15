@@ -2,6 +2,10 @@ from .Avatar_loading_control_panel_page import AvatarLoadingControlPanelPage
 from .Avatar_select_control_panel_page import AvatarSelectControlPanelPage
 from .Video_select_control_panel_page import VideoSelectControlPanelPage
 from .background_video_play_control_panel import BackgroundVideoPlayControlPanel
+<<<<<<< HEAD
+=======
+from .Game_play_control_panel_page import GamePlayControlPanelPage
+>>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
 from .converted_avatar_video_control_panel_page import ConvertedAvatarVideoControlPanelPage
 from .main_page_control_panel_page import MainPageControlPanelPage
 from .Score_control_panel_page import ScoreControlPanelPage

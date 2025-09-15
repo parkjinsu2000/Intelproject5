@@ -1,0 +1,12 @@
+../Core/Src/main.c:74:17:Servo_AngleToUs	3
+../Core/Src/main.c:80:13:Servo_MoveOneStep	3
+../Core/Src/main.c:92:13:Servo_Move_Mid	1
+../Core/Src/main.c:102:5:main	1
+../Core/Src/main.c:154:6:SystemClock_Config	3
+../Core/Src/main.c:201:13:MX_TIM2_Init	6
+../Core/Src/main.c:260:13:MX_TIM3_Init	6
+../Core/Src/main.c:319:13:MX_USART2_UART_Init	2
+../Core/Src/main.c:352:13:MX_GPIO_Init	1
+../Core/Src/main.c:387:6:HAL_TIM_PeriodElapsedCallback	8
+../Core/Src/main.c:411:6:HAL_UART_RxCpltCallback	6
+../Core/Src/main.c:439:6:Error_Handler	1
