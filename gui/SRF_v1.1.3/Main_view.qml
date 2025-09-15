@@ -219,6 +219,7 @@ ApplicationWindow {
         if (backgroundMediaPlayer.source !== "resource/openning_sound.mp4") {
             backgroundMediaPlayer.source = "resource/openning_sound.mp4"
         }
+        backgroundMediaPlayer.loops = MediaPlayer.Infinite // 무한 반복으로 되돌림
         backgroundMediaPlayer.volume = 0.5 // 볼륨을 원래대로 복원
         backgroundMediaPlayer.play()
     }

@@ -100,7 +100,7 @@ Item {
                 }
                 onClicked: {
                     console.log("메인으로 버튼 클릭")
-                    controlBridge.showMainMenu()
+                    controlBridge.goToMainMenu()
                 }
             }
         }
