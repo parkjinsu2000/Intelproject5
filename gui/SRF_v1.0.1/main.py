@@ -5,8 +5,10 @@ from PyQt5.QtCore import *
 
 from config import *
 
+
 from pages.control_pannel_pages import *
 from pages.view_pannel_pages import *
+
 
 
 # -------------------------------
@@ -96,6 +98,7 @@ class MainController(QObject):
 # -------------------------------
 def main():
     app = QApplication(sys.argv)
+
 
     video_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/background_video_large.mp4"
     image_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/title.png"
