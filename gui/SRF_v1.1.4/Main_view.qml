@@ -212,6 +212,10 @@ ApplicationWindow {
 
     function resetToInitialState() {
         console.log("🔄 Main_view를 초기 상태로 리셋합니다.")
+        
+        // 아바타 화면을 언로드합니다.
+        clearAvatarLoader()
+
         rootWindow.finalScore = -1
         rootWindow.videoEnabled = true
         gameBackgroundImage.visible = false

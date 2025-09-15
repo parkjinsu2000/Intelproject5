@@ -63,13 +63,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
         }
 
-        Button {
-            text: "변환하기"
-            onClicked: {
-                // currentIndex는 0,1,2,3
-                pyBridge.choose(avatarSelection.currentIndex)
-            }
-        }
+        
 
         RowLayout {
             spacing: 50
