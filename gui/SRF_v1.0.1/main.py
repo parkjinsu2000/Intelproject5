@@ -5,29 +5,11 @@ from PyQt5.QtCore import *
 
 from config import *
 
-<<<<<<< HEAD
-from pages.control_panel_pages import (
-    MainPageControlPanelPage,
-    VideoSelectControlPanelPage,
-    BackgroundVideoPlayControlPanel,
-    ScoreControlPanelPage,
-    AvatarSelectControlPanelPage,
-    AvatarLoadingControlPanelPage,
-    ConvertedAvatarVideoControlPanelPage,
-)
-from pages.view_pannel_pages import (
-    MainPageViewPanelPage,
-    VideoSelectViewPanelPage,
-    GamePlayViewPanelPage,
-    ScoreViewPanelPage,
-    AvatarSelectViewPanelPage,
-    AvatarLoadingViewPanelPage,
-    ConvertedAvatarVideoViewPanelPage,
-)
-=======
+
 from pages.control_pannel_pages import *
 from pages.view_pannel_pages import *
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
+
+
 
 # -------------------------------
 # Control 윈도우
@@ -117,13 +99,10 @@ class MainController(QObject):
 def main():
     app = QApplication(sys.argv)
 
-<<<<<<< HEAD
-    video_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/background_video_large.mp4"
-    image_file = "/home/ubuntu/workspace_intel/Intelproject5/gui/jeongtae/SRF_v1.0.0/title_image_4.png"
-=======
+
     video_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/background_video_large.mp4"
     image_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/title.png"
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
+
 
     controller = MainController(video_path=video_file, image_path=image_file)
 

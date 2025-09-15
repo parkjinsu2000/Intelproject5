@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtMultimedia 5.15
 import QtQuick.Layouts 1.15
+import QtQuick.Controls 2.15
 
 Item {
     id: avatarSelection
@@ -8,6 +9,8 @@ Item {
     property int currentIndex: 0
     property var avatars: [narutoAvatar, dadyAvatar, renAvatar, rumiAvatar]
     property var players: [narutoPlayer, dadyPlayer, renPlayer, rumiPlayer]
+    property alias selectedIndex: avatarSelection.currentIndex
+
     function updateSelection() {
         for (var i = 0; i < avatars.length; i++) {
             var avatar = avatars[i];
@@ -53,6 +56,14 @@ Item {
             font.pixelSize: 48
             color: "white"
             Layout.alignment: Qt.AlignHCenter
+        }
+
+        Button {
+            text: "변환하기"
+            onClicked: {
+                // currentIndex는 0,1,2,3
+                pyBridge.choose(avatarSelection.currentIndex)
+            }
         }
 
         RowLayout {

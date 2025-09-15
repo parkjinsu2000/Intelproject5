@@ -11,17 +11,17 @@ Item {
 
         // 왼쪽 컨트롤 그룹
         ColumnLayout {
-            spacing: 10 // 위아래 버튼 사이의 간격
+            spacing: 200 // 위아래 버튼 사이의 간격
 
             Button {
-                text: "<"
-                font.pixelSize: 20
-                width: 80
-                height: 50
-                Layout.alignment: Qt.AlignHCenter // 큰 버튼 위에 수평으로 중앙 정렬
+                text: "⬅️"
+                font.pixelSize: 200
+                width: 320
+                height: 200
+                Layout.alignment: Qt.AlignLeft // 큰 버튼 위에 수평으로 중앙 정렬
 
                 background: Rectangle {
-                    color: "#5DADE2" // 파란색 배경
+                    color: "#DD000000" // 파란색 배경
                     radius: 8
                 }
                 contentItem: Text {
@@ -31,17 +31,17 @@ Item {
                     anchors.centerIn: parent
                 }
                 onClicked: {
-                    console.log("왼쪽 버튼 클릭")
+                    controlBridge.onAvatarPrevious()
                 }
             }
 
             Button {
                 text: "변환하기"
-                font.pixelSize: 28
+                font.pixelSize: 100
                 width: 200
                 height: 70
                 background: Rectangle {
-                    color: "#5DADE2" // 파란색 배경
+                    color: "#DD000000" // 파란색 배경
                     radius: 10
                 }
                 contentItem: Text {
@@ -59,17 +59,17 @@ Item {
 
         // 오른쪽 컨트롤 그룹
         ColumnLayout {
-            spacing: 10 // 위아래 버튼 사이의 간격
+            spacing: 200 // 위아래 버튼 사이의 간격
 
             Button {
-                text: ">"
-                font.pixelSize: 20
-                width: 80
-                height: 50
-                Layout.alignment: Qt.AlignHCenter // 큰 버튼 위에 수평으로 중앙 정렬
+                text: "➡️"
+                font.pixelSize: 200
+                width: 320
+                height: 200
+                Layout.alignment: Qt.AlignRight // 큰 버튼 위에 수평으로 중앙 정렬
 
                 background: Rectangle {
-                    color: "#5DADE2" // 파란색 배경
+                    color: "#DD000000" // 파란색 배경
                     radius: 8
                 }
                 contentItem: Text {
@@ -79,17 +79,17 @@ Item {
                     anchors.centerIn: parent
                 }
                 onClicked: {
-                    console.log("오른쪽 버튼 클릭")
+                    controlBridge.onAvatarNext()
                 }
             }
 
             Button {
                 text: "메인으로"
-                font.pixelSize: 28
+                font.pixelSize: 100
                 width: 200
                 height: 70
                 background: Rectangle {
-                    color: "#5DADE2" // 파란색 배경
+                    color: "#DD000000" // 파란색 배경
                     radius: 10
                 }
                 contentItem: Text {
