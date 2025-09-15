@@ -119,6 +119,22 @@ ApplicationWindow {
         }
     }
 
+    // 🎬 전경 영상 출력 (흐린 배경)
+    VideoOutput {
+        id: foregroundVideoBlurred
+        anchors.fill: parent
+        source: foregroundMediaPlayer
+        fillMode: VideoOutput.PreserveAspectCrop
+        visible: foregroundVideoOutput.visible
+        z: 1
+
+        FastBlur {
+            anchors.fill: parent
+            source: parent
+            radius: 64
+        }
+    }
+
     // 🎬 전경 영상 출력 (선택된 비디오)
     VideoOutput {
         id: foregroundVideoOutput
@@ -126,7 +142,7 @@ ApplicationWindow {
         source: foregroundMediaPlayer
         fillMode: VideoOutput.PreserveAspectFit
         visible: false
-        z: 1
+        z: 2
     }
 
     // 🎬 전경 영상 재생기
@@ -294,7 +310,7 @@ ApplicationWindow {
     function resetToInitialState() {
         console.log("🔄 Main_view를 초기 상태로 리셋합니다.")
         
-        // 아바타 화면을 언로드합니다.
+        stopForegroundVideo()
         clearAvatarLoader()
 
         rootWindow.finalScore = -1

@@ -5,6 +5,7 @@ import cv2
 import json
 import numpy as np
 import time
+import os
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QSizePolicy,
     QSplitter, QMessageBox, QHBoxLayout
@@ -56,6 +57,13 @@ class MultiPlayerApp(BasePoseApp):
         self.tracker_yaml = "botsort.yaml"
         self.active_players = {} # 플레이어 ID (1 또는 2) -> 정보
         self.previous_kps = {} # 각 플레이어의 이전 키포인트 저장
+
+        # 영상 녹화 관련 변수
+        self.video_writer = None
+        resource_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'resource')
+        if not os.path.exists(resource_dir):
+            os.makedirs(resource_dir)
+        self.output_path = os.path.join(resource_dir, 'output.mp4')
 
         if self.args.json is None:
             QMessageBox.critical(self, "오류", "오류: JSON 파일 경로가 제공되지 않았습니다.")
@@ -127,7 +135,7 @@ class MultiPlayerApp(BasePoseApp):
         for player_id, score in sorted_players:
             score_to_display = int(score)
             display_name = f"Player {player_id}"
-            info_text += f"{display_name}: {score_to_display}\n"
+            info_text += f"{display_name}: {score_to_display}pts\n"
         
         # 시각적 표시만 제거
         self.player_info_label.setText(info_text)
@@ -183,6 +191,10 @@ class MultiPlayerApp(BasePoseApp):
                 return
             
             flipped_frame = cv2.flip(frame, 1)
+
+            if self.video_writer:
+                self.video_writer.write(flipped_frame)
+
             tracked_players = self.infer_and_track_once(self.model, flipped_frame, self.tracker_yaml, self.args.imgsz, self.args.device, self.use_half)
             display_frame = flipped_frame.copy()
 
@@ -336,6 +348,15 @@ class MultiPlayerApp(BasePoseApp):
             self.overlay_label.setText(str(self.count))
         elif self.count == 0:
             self.overlay_label.setText("START")
+            # 녹화 시작
+            if self.cap and self.cap.isOpened():
+                width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = self.cap.get(cv2.CAP_PROP_FPS)
+                if fps == 0:
+                    fps = 30 # 기본 FPS
+                self.video_writer = cv2.VideoWriter(self.output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+                print(f"🎥 웹캠 녹화를 시작합니다. 저장 경로: {self.output_path}")
         else:
             self.overlay_label.hide()
             self.count_timer.stop()
@@ -350,7 +371,22 @@ class MultiPlayerApp(BasePoseApp):
             print("비디오 재생이 종료되었습니다. 창을 닫습니다.")
             self.game_over_flag = True
             self.end_time = time.time() # 게임 종료 시간 기록
+            
+            # 녹화 종료
+            if self.video_writer:
+                self.video_writer.release()
+                self.video_writer = None
+                print(f"✅ 영상이 성공적으로 저장되었습니다: {self.output_path}")
+
             self.close() # Close the window
+
+    def closeEvent(self, event):
+        """창이 닫힐 때 호출되는 이벤트 핸들러."""
+        if self.video_writer:
+            self.video_writer.release()
+            self.video_writer = None
+            print("ℹ️ 창이 닫혀 녹화를 중지하고 영상을 저장했습니다.")
+        super().closeEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

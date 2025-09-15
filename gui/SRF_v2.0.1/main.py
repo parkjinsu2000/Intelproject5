@@ -324,6 +324,17 @@ class ControlBridge(QObject):
         else:
             print("❗ 마지막으로 플레이한 게임 정보가 없습니다.")
 
+    @pyqtSlot()
+    def showReplay(self):
+        print("🎬 리플레이를 보여줍니다.")
+        self.view_window.setProperty('multiplayerScores', {})
+
+        video_path = "resource/output.mp4"
+        if os.path.exists(video_path):
+            QMetaObject.invokeMethod(self.view_window, "playVideo", Qt.QueuedConnection, Q_ARG(QVariant, video_path))
+        else:
+            print(f"❗ 리플레이 비디오 파일을 찾을 수 없습니다: {video_path}")
+
     @pyqtSlot(str)
     def startGame(self, videoPath):
         if self.is_multi_player:
