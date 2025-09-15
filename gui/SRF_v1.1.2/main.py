@@ -66,31 +66,19 @@ class ConversionWorker(QObject):
     def run(self):
         """Long-running task for avatar conversion."""
         try:
-            # Stage 1: Video to JSON (0% -> 10%)
+            # Stage 1: Video to JSON (0% -> 10%) - SKIPPED
             self.totalProgress.emit(0)
-            video_in = "resource/output.mp4"
             json_out = "resource/output.json"
-            model_path = "merge_test/yolov8l-pose.pt"
-            
-            self.log.emit("Starting video to JSON conversion...")
-            cmd = [
-                sys.executable, "merge_test/tools/video_to_json.py",
-                "--video_path", video_in,
-                "--output_json", json_out,
-                "--model_path", model_path
-            ]
-            
-            env = os.environ.copy()
-            env["PYTHONPATH"] = os.path.abspath("merge_test") + os.pathsep + env.get("PYTHONPATH", "")
+            template_json_path = "resource/videos/5sec.json" 
 
-            process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8')
-            for line in iter(process.stdout.readline, ''):
-                self.log.emit(line.strip())
-            process.wait()
-            self.log.emit("Video to JSON conversion finished.")
+            self.log.emit(f"Skipping video conversion, using {template_json_path} as a template.")
+            
+            with open(template_json_path, 'r', encoding='utf-8') as f_in:
+                template_content = f_in.read()
+            with open(json_out, 'w', encoding='utf-8') as f_out:
+                f_out.write(template_content)
+            self.log.emit(f"Successfully created {json_out} from template.")
 
-            if process.returncode != 0:
-                raise RuntimeError("video_to_json.py failed")
             self.totalProgress.emit(10)
 
             # Stage 2: Render frames (10% -> 60%)
@@ -165,6 +153,8 @@ class ControlBridge(QObject):
     showAvatarScreen = pyqtSignal()
     conversionStarted = pyqtSignal()
     conversionFinishedForControl = pyqtSignal()
+    avatarNext = pyqtSignal()
+    avatarPrevious = pyqtSignal()
 
     def __init__(self, screens, signalBridge, model_data, view_window, parent=None):
         super().__init__(parent)
@@ -244,15 +234,11 @@ class ControlBridge(QObject):
 
     @pyqtSlot()
     def onAvatarNext(self):
-        loader = self.view_window.findChild(QObject, "avatarLoader")
-        if loader and loader.item():
-            QMetaObject.invokeMethod(loader.item(), "selectNext", Qt.QueuedConnection)
+        self.avatarNext.emit()
 
     @pyqtSlot()
     def onAvatarPrevious(self):
-        loader = self.view_window.findChild(QObject, "avatarLoader")
-        if loader and loader.item():
-            QMetaObject.invokeMethod(loader.item(), "selectPrevious", Qt.QueuedConnection)
+        self.avatarPrevious.emit()
 
     @pyqtSlot()
     def goToMainMenu(self):
@@ -371,7 +357,16 @@ def main():
     single_monitor_mode = len(screens) < 2
 
     view_engine = QQmlApplicationEngine()
+    main_engine = QQmlApplicationEngine()
+
+    # 브릿지 객체들을 먼저 생성합니다.
+    # view_window는 아직 존재하지 않으므로 None으로 초기화하고 나중에 설정합니다.
+    signalBridge = SignalBridge(None) 
+    controlBridge = ControlBridge(screens, signalBridge, model_data, None)
+
+    # view_engine에 controlBridge를 설정합니다.
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
+    view_engine.rootContext().setContextProperty("controlBridge", controlBridge)
     view_engine.load(QUrl("Main_view.qml"))
 
     if not view_engine.rootObjects():
@@ -379,14 +374,14 @@ def main():
         sys.exit(-1)
 
     view_window = view_engine.rootObjects()[0]
+    
+    # 브릿지 객체에 view_window를 설정합니다.
+    signalBridge.main_view_window = view_window
+    controlBridge.view_window = view_window
+
     view_window.setGeometry(screen_for_view.geometry())
     view_window.show()
     print(f"✅ Main_view.qml 로드 완료")
-
-    main_engine = QQmlApplicationEngine()
-    
-    signalBridge = SignalBridge(view_window)
-    controlBridge = ControlBridge(screens, signalBridge, model_data, view_window)
     
     controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
 

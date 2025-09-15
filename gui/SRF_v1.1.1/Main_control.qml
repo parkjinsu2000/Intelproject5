@@ -76,6 +76,8 @@ ApplicationWindow {
         console.log("🔄 화면 전환: AvatarControl.qml 로드")
         pageLoader.source = "AvatarControl.qml"
     }
+<<<<<<< HEAD
+=======
 
     function showConvertingScreen() {
         console.log("🔄 화면 전환: AvatarConverting.qml 로드")
@@ -86,4 +88,5 @@ ApplicationWindow {
         console.log("🔄 화면 전환: AvatarConverted.qml 로드")
         pageLoader.source = "AvatarConverted.qml"
     }
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 }

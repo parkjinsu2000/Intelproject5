@@ -9,21 +9,30 @@ if hasattr(PyQt5, 'QtCore'):
     os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = pyqt_plugins_path
 
 from PyQt5.QtWidgets import QApplication
+<<<<<<< HEAD
+from PyQt5.QtGui import QGuiApplication, QKeyEvent
+from PyQt5.QtQml import QQmlApplicationEngine
+from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, Qt, QMetaObject, QEvent
+=======
 from PyQt5.QtGui import QGuiApplication, QKeyEvent, QImage
 from PyQt5.QtQml import QQmlApplicationEngine
 from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, Qt, QMetaObject, QEvent, QThread, QGenericArgument
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 
 # 게임 관련 모듈 임포트
 import torch
 from ultralytics import YOLO
 from argparse import Namespace
 
+<<<<<<< HEAD
+=======
 # --- 추가 임포트 ---
 from avatar_qt import MannequinRenderer
 import cv2
 import numpy as np
 # -----------------
 
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 # merge_test 폴더를 모듈 검색 경로에 추가
 sys.path.insert(0, os.path.abspath('merge_test'))
 from pages.Single_Player_app import SinglePlayerApp
@@ -52,6 +61,8 @@ class SignalBridge(QObject):
         self.main_view_window.playVideo(videoPath)
 
 
+<<<<<<< HEAD
+=======
 # --- 아바타 변환 작업자 ---
 class ConversionWorker(QObject):
     finished = pyqtSignal()
@@ -155,6 +166,7 @@ class ConversionWorker(QObject):
         except Exception as e:
             self.log.emit(f"Error writing video: {e}")
 
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 # 🎮 컨트롤 브리지: 버튼 클릭 시 화면 전환 신호를 보냅니다.
 class ControlBridge(QObject):
     showVideoSelect = pyqtSignal()
@@ -163,8 +175,11 @@ class ControlBridge(QObject):
     showRank = pyqtSignal(int)
     showMainMenu = pyqtSignal()
     showAvatarScreen = pyqtSignal()
+<<<<<<< HEAD
+=======
     conversionStarted = pyqtSignal()
     conversionFinishedForControl = pyqtSignal()
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 
     def __init__(self, screens, signalBridge, model_data, view_window, parent=None):
         super().__init__(parent)
@@ -176,8 +191,11 @@ class ControlBridge(QObject):
         self.view_window = view_window
         self.game_window = None
         self.last_video_path = None
+<<<<<<< HEAD
+=======
         self.conversion_thread = None
         self.conversion_worker = None
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 
     @pyqtSlot(str)
     def selectVideo(self, videoPath):
@@ -195,6 +213,8 @@ class ControlBridge(QObject):
         self.showAvatarScreen.emit()
         
     @pyqtSlot()
+<<<<<<< HEAD
+=======
     def startAvatarConversion(self):
         print("🔄 아바타 변환 시작 신호 수신")
         if self.conversion_thread and self.conversion_thread.isRunning():
@@ -243,6 +263,7 @@ class ControlBridge(QObject):
             self.goToMainMenu()
 
     @pyqtSlot()
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     def goToMainMenu(self):
         print("🎬 메인 메뉴로 돌아갑니다.")
         QMetaObject.invokeMethod(self.view_window, "resetToInitialState", Qt.QueuedConnection)
@@ -306,16 +327,30 @@ class ControlBridge(QObject):
             print(f"Final score from game window: {score}")
             self.showRank.emit(int(score))
         self.gameFinished.emit() # 게임 종료 신호 전송
+<<<<<<< HEAD
+        # 배경 비디오를 다시 시작하지 않음
+=======
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
         self.game_window = None
 
 
 def main():
     app = QApplication(sys.argv)
+<<<<<<< HEAD
+    app.setQuitOnLastWindowClosed(False) # 마지막 창이 닫혀도 앱이 종료되지 않도록 설정
+
+    # 전역 이벤트 필터 설치
+    event_filter = AppEventFilter()
+    app.installEventFilter(event_filter)
+    
+    # --- YOLO 모델 로드 (애플리케이션 시작 시 한 번만) ---
+=======
     app.setQuitOnLastWindowClosed(False)
 
     event_filter = AppEventFilter()
     app.installEventFilter(event_filter)
     
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     print("🧠 YOLOv8 모델을 로드합니다...")
     model = YOLO("merge_test/yolov8l-pose.pt")
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -332,12 +367,20 @@ def main():
             use_half = False
     print("✅ 모델 로드 완료.")
     model_data = {"model": model, "device": device, "use_half": use_half}
+<<<<<<< HEAD
+    # ----------------------------------------------------
+=======
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 
     screens = QGuiApplication.screens()
     print(f"총 {len(screens)}개의 모니터가 감지되었습니다.")
     for i, screen in enumerate(screens):
         print(f"🖥️ 모니터 {i}: name={screen.name()}, geometry={screen.geometry()}")
 
+<<<<<<< HEAD
+    # 해상도로 특정 모니터 찾기
+=======
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     screen_for_view = None
     screen_for_control = None
 
@@ -351,6 +394,10 @@ def main():
                 screen_for_control = screen
                 print(f"✅ Main_control용 모니터 (1920x1080) 찾음: {screen.name()}")
 
+<<<<<<< HEAD
+    # 특정 모니터를 찾지 못했을 경우의 대비책
+=======
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     if not screen_for_view or not screen_for_control:
         print("⚠️ 특정 해상도의 모니터를 찾지 못했습니다. 기본 설정(0, 1)을 사용합니다.")
         screen_for_view = screens[0]
@@ -374,8 +421,15 @@ def main():
     main_engine = QQmlApplicationEngine()
     
     signalBridge = SignalBridge(view_window)
+<<<<<<< HEAD
+    # view_window를 ControlBridge에 전달
     controlBridge = ControlBridge(screens, signalBridge, model_data, view_window)
     
+    # 점수 신호를 QML 속성에 연결
+=======
+    controlBridge = ControlBridge(screens, signalBridge, model_data, view_window)
+    
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
 
     main_engine.rootContext().setContextProperty("targetScreen", screen_for_control)
@@ -389,10 +443,13 @@ def main():
 
     main_window = main_engine.rootObjects()[0]
     
+<<<<<<< HEAD
+=======
     # 신호 연결 추가
     controlBridge.conversionStarted.connect(lambda: main_window.showConvertingScreen())
     controlBridge.conversionFinishedForControl.connect(lambda: main_window.showConvertedScreen())
 
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     if single_monitor_mode:
         screen_geo = screen_for_control.geometry()
         width = 400
@@ -405,10 +462,18 @@ def main():
         main_window.show()
         print(f"✅ Main_control.qml 모니터 {screens.index(screen_for_control)}에 전체화면으로 띄움")
     
+<<<<<<< HEAD
+    # 아바타 화면 전환 신호 연결
+=======
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(main_window, "showAvatarScreen", Qt.QueuedConnection))
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(view_window, "showAvatarScreen", Qt.QueuedConnection))
     
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     main()
+=======
+    main()
+>>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353

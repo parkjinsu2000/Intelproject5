@@ -41,6 +41,21 @@ ApplicationWindow {
         }
     }
 
+    // Python의 ControlBridge에서 오는 신호를 처리
+    Connections {
+        target: controlBridge
+        function onAvatarNext() {
+            if (avatarLoader.item) {
+                avatarLoader.item.selectNext()
+            }
+        }
+        function onAvatarPrevious() {
+            if (avatarLoader.item) {
+                avatarLoader.item.selectPrevious()
+            }
+        }
+    }
+
     // 배경 이미지 (게임 중 표시)
     Image {
         id: gameBackgroundImage
