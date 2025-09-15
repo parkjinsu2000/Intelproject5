@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import atexit
+import json
 
 # PyQt5를 먼저 임포트하고 환경 변수를 설정합니다.
 import PyQt5
@@ -29,6 +30,7 @@ import numpy as np
 sys.path.insert(0, os.path.abspath('merge_test'))
 sys.path.insert(0, os.path.abspath('merge_test/tools'))
 from pages.Single_Player_app import SinglePlayerApp
+from pages.Multi_Player_app import MultiPlayerApp
 from video_to_json import create_json_from_video
 
 def delete_output_files():
@@ -51,11 +53,20 @@ def delete_output_files():
 
 # ⌨️ 전역 키 이벤트 필터: 'q' 키를 누르면 앱 종료
 class AppEventFilter(QObject):
+    def __init__(self, control_bridge, parent=None):
+        super().__init__(parent)
+        self.control_bridge = control_bridge
+
     def eventFilter(self, obj, event):
         if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Q:
-            print("'q' key pressed. Terminating application.")
-            QGuiApplication.instance().quit()
-            return True
+            if self.control_bridge.game_window and self.control_bridge.game_window.isVisible():
+                print("'q' key pressed. Closing game window.")
+                self.control_bridge.game_window.close()
+                return True
+            else:
+                print("'q' key pressed. Terminating application.")
+                QGuiApplication.instance().quit()
+                return True
         return super().eventFilter(obj, event)
 
 # 🔔 시그널 브리지: QML에서 Python으로 데이터를 전달하고, 다시 다른 QML로 명령을 보냅니다.
@@ -174,8 +185,9 @@ class ConversionWorker(QObject):
 class ControlBridge(QObject):
     showVideoSelect = pyqtSignal()
     gameStarted = pyqtSignal()
-    gameFinished = pyqtSignal()
+    showPostGameMenu = pyqtSignal(str)
     showRank = pyqtSignal(int)
+    showMultiplayerResult = pyqtSignal(str)
     showMainMenu = pyqtSignal()
     showAvatarScreen = pyqtSignal()
     conversionStarted = pyqtSignal()
@@ -196,6 +208,7 @@ class ControlBridge(QObject):
         self.conversion_thread = None
         self.conversion_worker = None
         self.current_avatar_index = 0
+        self.is_multi_player = False
 
     @pyqtSlot(int)
     def onAvatarIndexChanged(self, index):
@@ -215,7 +228,14 @@ class ControlBridge(QObject):
 
     @pyqtSlot()
     def openVideoSelectWindow(self):
-        print("🎬 버튼 클릭됨: Video Select 화면으로 전환 신호 전송")
+        print("🎬 버튼 클릭됨: Video Select 화면으로 전환 신호 전송 (1인 모드)")
+        self.is_multi_player = False
+        self.showVideoSelect.emit()
+
+    @pyqtSlot()
+    def openVideoSelectWindowForMultiplayer(self):
+        print("🎬 버튼 클릭됨: Video Select 화면으로 전환 신호 전송 (2인 모드)")
+        self.is_multi_player = True
         self.showVideoSelect.emit()
         
     @pyqtSlot()
@@ -242,7 +262,7 @@ class ControlBridge(QObject):
         self.conversion_thread.started.connect(self.conversion_worker.run)
         self.conversion_worker.finished.connect(self.conversion_thread.quit)
         self.conversion_worker.finished.connect(self.conversion_worker.deleteLater)
-        self.conversion_thread.finished.connect(self.conversion_thread.deleteLater)
+        self.conversion_worker.finished.connect(self.conversion_thread.deleteLater)
         self.conversion_thread.finished.connect(self.onConversionThreadFinished)
         
         self.conversion_worker.totalProgress.connect(self.updateConversionProgress)
@@ -300,12 +320,18 @@ class ControlBridge(QObject):
     def retryGame(self):
         print("🎮 게임을 다시 시작합니다.")
         if self.last_video_path:
-            self.startSinglePlayer(self.last_video_path)
+            self.startGame(self.last_video_path)
         else:
             print("❗ 마지막으로 플레이한 게임 정보가 없습니다.")
 
     @pyqtSlot(str)
-    def startSinglePlayer(self, videoPath):
+    def startGame(self, videoPath):
+        if self.is_multi_player:
+            self._startMultiPlayer(videoPath)
+        else:
+            self._startSinglePlayer(videoPath)
+
+    def _startSinglePlayer(self, videoPath):
         if not videoPath:
             print("❗ 비디오가 선택되지 않았습니다.")
             return
@@ -345,25 +371,67 @@ class ControlBridge(QObject):
         self.game_window.move(screen_geometry.topLeft())
         self.game_window.showFullScreen()
 
+    def _startMultiPlayer(self, videoPath):
+        if not videoPath:
+            print("❗ 비디오가 선택되지 않았습니다.")
+            return
+
+        if self.game_window and self.game_window.isVisible():
+            print("❗ 이미 게임이 실행 중입니다.")
+            return
+
+        print(f"🚀 멀티 플레이어 모드 시작: {videoPath}")
+        self.last_video_path = videoPath
+        self.gameStarted.emit()
+
+        QMetaObject.invokeMethod(self.view_window, "showBackgroundImage", Qt.QueuedConnection)
+        QMetaObject.invokeMethod(self.view_window, "stopForegroundVideo", Qt.QueuedConnection)
+
+        json_path = videoPath.replace(".mp4", ".json")
+        args = Namespace(
+            ref=videoPath,
+            json=json_path,
+            imgsz=640,
+            device=self.device,
+            conf_thres=0.5,
+        )
+
+        self.game_window = MultiPlayerApp(args, self.model, self.use_half)
+        self.game_window.setAttribute(Qt.WA_DeleteOnClose)
+        
+        self.game_window.destroyed.connect(self.onGameFinished)
+
+        screen_for_view = self.screens[0]
+        screen_geometry = screen_for_view.geometry()
+        self.game_window.move(screen_geometry.topLeft())
+        self.game_window.showFullScreen()
+
 
     @pyqtSlot()
     def onGameFinished(self):
         print("🏁 게임 창이 닫혔습니다.")
         if self.game_window:
-            score = self.game_window.final_score
-            print(f"Final score from game window: {score}")
-            self.showRank.emit(int(score))
-        self.gameFinished.emit() # 게임 종료 신호 전송
+            if self.is_multi_player:
+                scores = self.game_window.final_score
+                print(f"Multiplayer scores from game window: {scores}")
+                self.showMultiplayerResult.emit(json.dumps(scores))
+            else:
+                score = self.game_window.final_score
+                print(f"Final score from game window: {score}")
+                self.showRank.emit(int(score))
+        
+        if self.is_multi_player:
+            self.showPostGameMenu.emit("PostGameMenu_Multi.qml")
+        else:
+            self.showPostGameMenu.emit("PostGameMenu.qml")
+            
         self.game_window = None
-
 
 def main():
     app = QApplication(sys.argv)
     atexit.register(delete_output_files)
     app.setQuitOnLastWindowClosed(False)
 
-    event_filter = AppEventFilter()
-    app.installEventFilter(event_filter)
     
     print("🧠 YOLOv8 모델을 로드합니다...")
     model = YOLO("merge_test/yolov8l-pose.pt")
@@ -415,6 +483,9 @@ def main():
     signalBridge = SignalBridge(None) 
     controlBridge = ControlBridge(screens, signalBridge, model_data, None)
 
+    event_filter = AppEventFilter(controlBridge)
+    app.installEventFilter(event_filter)
+
     # view_engine에 controlBridge를 설정합니다.
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
     view_engine.rootContext().setContextProperty("controlBridge", controlBridge)
@@ -436,6 +507,7 @@ def main():
     print(f"✅ Main_view.qml 로드 완료")
     
     controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
+    controlBridge.showMultiplayerResult.connect(lambda scores: view_window.setProperty('multiplayerScores', scores))
 
     main_engine.rootContext().setContextProperty("targetScreen", screen_for_control)
     main_engine.rootContext().setContextProperty("controlBridge", controlBridge)

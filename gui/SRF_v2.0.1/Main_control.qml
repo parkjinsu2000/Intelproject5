@@ -61,9 +61,9 @@ ApplicationWindow {
             pageLoader.visible = false
         }
 
-        function onGameFinished() {
+        function onShowPostGameMenu(qmlFile) {
             console.log("🏁 게임 종료 신호 수신: 컨트롤 UI 표시")
-            pageLoader.source = "PostGameMenu.qml" // 게임 후 메뉴로 복귀
+            pageLoader.source = qmlFile // 게임 후 메뉴로 복귀
             pageLoader.visible = true
         }
         function onShowMainMenu() {

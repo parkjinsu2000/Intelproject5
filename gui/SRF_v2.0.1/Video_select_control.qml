@@ -137,8 +137,8 @@ Rectangle {
                 onClicked: {
                     if (enabled) {
                         console.log("게임 시작! 선택된 비디오:", videoSelectScreen.selectedVideoPath)
-                        // Python의 startSinglePlayer 함수 호출
-                        controlBridge.startSinglePlayer(videoSelectScreen.selectedVideoPath)
+                        // Python의 startGame 함수 호출
+                        controlBridge.startGame(videoSelectScreen.selectedVideoPath)
                     } else {
                         console.log("비디오를 먼저 선택해주세요.")
                     }

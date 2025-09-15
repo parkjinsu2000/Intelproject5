@@ -78,7 +78,6 @@ class MultiPlayerApp(BasePoseApp):
         self.player_info_label.hide()
 
         self.count = 6
-        self.final_score = 80.0
         self.score_history = collections.defaultdict(list)
         self.score_history_length = 3
         self.follow_delay_ms = 200
@@ -95,6 +94,10 @@ class MultiPlayerApp(BasePoseApp):
         if self.args.ref is not None:
             self.show_preview_frame(self.args.ref)
     
+    @property
+    def final_score(self):
+        return dict(self.local_scores)
+
     def play_video(self):
         super().play_video()
         self.start_time = time.time()
@@ -172,7 +175,6 @@ class MultiPlayerApp(BasePoseApp):
     def update_frame(self, force_refresh=False):
         """웹캠 프레임을 업데이트하고 포즈 감지 결과를 화면에 표시합니다."""
         if self.game_over_flag:
-            self.display_final_score()
             return
 
         if self.cap and self.cap.isOpened():
@@ -345,83 +347,10 @@ class MultiPlayerApp(BasePoseApp):
     def handle_video_state(self, state):
         """부모 클래스의 비디오 상태 감지 메서드를 오버라이드하여 게임 종료를 처리합니다."""
         if state == QMediaPlayer.StoppedState:
-            print("비디오 재생이 종료되었습니다. 최종 점수를 표시합니다.")
+            print("비디오 재생이 종료되었습니다. 창을 닫습니다.")
             self.game_over_flag = True
-            super().game_over()
-            self.display_final_score()
             self.end_time = time.time() # 게임 종료 시간 기록
-
-    def display_final_score(self):
-        """
-        최종 점수를 화면에 그립니다.
-        각 플레이어의 최종 점수를 나열하여 표시합니다.
-        """
-        label_size = self.cam_label.size()
-        if label_size.width() <= 1 or label_size.height() <= 1:
-            QTimer.singleShot(50, self.display_final_score)
-            return
-
-        pixmap = QPixmap(label_size)
-        pixmap.fill(QColor(0, 0, 0))
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.TextAntialiasing)
-        
-        title_font = QFont("Arial", 40, QFont.Bold)
-        painter.setFont(title_font)
-        painter.setPen(QColor(255, 255, 255))
-        title_rect = QRect(0, int(pixmap.height() * 0.2), pixmap.width(), 50)
-        painter.drawText(title_rect, Qt.AlignCenter, "FINAL SCORES")
-
-        sorted_scores = sorted(self.local_scores.items(), key=lambda item: item[1], reverse=True)
-        player_rank_map = {}
-        for i, (player_id, score) in enumerate(sorted_scores):
-            if i > 0 and score == sorted_scores[i-1][1]:
-                player_rank_map[player_id] = player_rank_map[sorted_scores[i-1][0]]
-            else:
-                player_rank_map[player_id] = i + 1
-        
-        score_font = QFont("Arial", 30, QFont.Bold)
-        painter.setFont(score_font)
-        line_height = 40
-        start_y = int(pixmap.height() * 0.4)
-
-        for i, (player_id, score) in enumerate(sorted_scores):
-            score_to_display = int(score)
-            display_name = f"Player {player_id}"
-
-            if score_to_display >= 80:
-                painter.setPen(QColor(0, 255, 0))
-            elif score_to_display >= 50:
-                painter.setPen(QColor(255, 255, 0))
-            else:
-                painter.setPen(QColor(255, 0, 0))
-
-            text = f"{display_name}: {score_to_display}"
-            text_y = start_y + i * line_height
-            score_rect = QRect(0, text_y, pixmap.width(), line_height)
-            painter.drawText(score_rect, Qt.AlignCenter, text)
-
-        painter.end()
-        self.cam_label.setPixmap(pixmap)
-
-        if self.button_container is None:
-            self.button_container = QWidget(self.cam_label)
-            layout = QHBoxLayout(self.button_container)
-            self.main_btn = QPushButton("메인으로")
-            font = QFont("Arial", 20, QFont.Bold)
-            self.main_btn.setFont(font)
-            self.main_btn.setStyleSheet("background-color: white; padding: 10px; border-radius: 10px;")
-            layout.addStretch(1)
-            layout.addWidget(self.main_btn)
-            layout.addStretch(1)
-            self.button_container.setLayout(layout)
-            self.button_container.setGeometry(
-                0, int(self.cam_label.height() * 0.8),
-                self.cam_label.width(), 60
-            )
-            self.button_container.show()
-            self.main_btn.clicked.connect(self.goMainRequested.emit)
+            self.close() # Close the window
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -429,10 +358,3 @@ class MultiPlayerApp(BasePoseApp):
             self.overlay_label.setGeometry(self.cam_label.rect())
             overlay_font_size = int(self.cam_label.height() / 5)
             self.overlay_label.setFont(QFont("Arial", overlay_font_size, QFont.Bold))
-        if self.game_over_flag:
-            self.display_final_score()
-            if self.button_container:
-                self.button_container.setGeometry(
-                    0, int(self.cam_label.height() * 0.8),
-                    self.cam_label.width(), 60
-                )

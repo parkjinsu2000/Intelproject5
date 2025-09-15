@@ -9,6 +9,7 @@ ApplicationWindow {
     id: rootWindow
     property var targetScreen
     property int finalScore: -1
+    property var multiplayerScores: ({})
     property bool videoEnabled: true // 비디오 배경 활성화 여부
 
     visible: true
@@ -21,10 +22,10 @@ ApplicationWindow {
         function onTargetScreenChanged() {
             if (targetScreen !== undefined && targetScreen !== null) {
                 rootWindow.screen = targetScreen
-                rootWindow.x = targetScreen.geometry.x
-                rootWindow.y = targetScreen.geometry.y
-                rootWindow.width = targetScreen.geometry.width
-                rootWindow.height = targetScreen.geometry.height
+                appWindow.x = targetScreen.geometry.x
+                appWindow.y = targetScreen.geometry.y
+                appWindow.width = targetScreen.geometry.width
+                appWindow.height = targetScreen.geometry.height
                 console.log("✅ targetScreen 전달됨:", targetScreen.name)
                 console.log("🧭 QML에서 적용된 screen 이름:", screen.name)
                 console.log("📍 위치:", x, y, "크기:", width, height)
@@ -41,6 +42,12 @@ ApplicationWindow {
         }
     }
 
+    onMultiplayerScoresChanged: {
+        if (Object.keys(multiplayerScores).length > 0) {
+            hideMultiplayerResultTimer.start()
+        }
+    }
+
     // Python의 ControlBridge에서 오는 신호를 처리
     Connections {
         target: controlBridge
@@ -52,6 +59,14 @@ ApplicationWindow {
         function onAvatarPrevious() {
             if (avatarLoader.item) {
                 avatarLoader.item.selectPrevious()
+            }
+        }
+        function onShowMultiplayerResult(scoresJson) {
+            console.log("🏆 Multiplayer scores received (JSON):", scoresJson)
+            try {
+                rootWindow.multiplayerScores = JSON.parse(scoresJson)
+            } catch (e) {
+                console.log("Error parsing scores JSON:", e)
             }
         }
     }
@@ -167,6 +182,72 @@ ApplicationWindow {
         }
     }
 
+    // 🏆 멀티플레이어 결과 표시
+    Rectangle {
+        id: multiplayerResult
+        anchors.fill: parent
+        color: "#AA000000"
+        z: 10
+        visible: Object.keys(rootWindow.multiplayerScores).length > 0
+
+        property var sortedScores: []
+        property int winnerId: -1
+
+        onVisibleChanged: {
+            if (visible) {
+                var scoresArray = []
+                for (var p in rootWindow.multiplayerScores) {
+                    scoresArray.push({ id: p, score: rootWindow.multiplayerScores[p] })
+                }
+                scoresArray.sort(function(a, b) { return b.score - a.score })
+                sortedScores = scoresArray
+                if (sortedScores.length > 0) {
+                    winnerId = sortedScores[0].id
+                }
+            }
+        }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 20
+
+            Text {
+                text: "Game Over"
+                font.pixelSize: 80
+                color: "white"
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+
+            Repeater {
+                model: multiplayerResult.sortedScores
+                delegate: Row {
+                    spacing: 20
+                    Text {
+                        text: "Player " + modelData.id + (
+                            modelData.id == multiplayerResult.winnerId ? " (Winner)" : "")
+                        font.pixelSize: 40
+                        color: modelData.id == multiplayerResult.winnerId ? "gold" : "white"
+                    }
+                    Text {
+                        text: modelData.score
+                        font.pixelSize: 40
+                        color: modelData.id == multiplayerResult.winnerId ? "gold" : "white"
+                    }
+                }
+            }
+        }
+    }
+
+    // ⏱️ 멀티플레이어 결과 숨기는 타이머
+    Timer {
+        id: hideMultiplayerResultTimer
+        interval: 8000 // 8초
+        repeat: false
+        onTriggered: {
+            rootWindow.multiplayerScores = ({})
+        }
+    }
+
     Loader {
         id: avatarLoader
         anchors.fill: parent
@@ -217,6 +298,7 @@ ApplicationWindow {
         clearAvatarLoader()
 
         rootWindow.finalScore = -1
+        rootWindow.multiplayerScores = ({})
         rootWindow.videoEnabled = true
         gameBackgroundImage.visible = false
         backgroundVideoOutput.visible = true
