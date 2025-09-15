@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import atexit
 
 # PyQt5를 먼저 임포트하고 환경 변수를 설정합니다.
 import PyQt5
@@ -26,7 +27,27 @@ import numpy as np
 
 # merge_test 폴더를 모듈 검색 경로에 추가
 sys.path.insert(0, os.path.abspath('merge_test'))
+sys.path.insert(0, os.path.abspath('merge_test/tools'))
 from pages.Single_Player_app import SinglePlayerApp
+from video_to_json import create_json_from_video
+
+def delete_output_files():
+    """출력 비디오 파일을 삭제하는 함수"""
+    print("Deleting output files...")
+    files_to_delete = [
+        "resource/output.mp4",
+        "resource/output_character.mp4",
+        "resource/output.json"
+    ]
+    for f in files_to_delete:
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+                print(f"Deleted {f}")
+            except OSError as e:
+                print(f"Error deleting file {f}: {e}")
+        else:
+            print(f"File not found, skipping: {f}")
 
 # ⌨️ 전역 키 이벤트 필터: 'q' 키를 누르면 앱 종료
 class AppEventFilter(QObject):
@@ -58,36 +79,42 @@ class ConversionWorker(QObject):
     totalProgress = pyqtSignal(int) # 전체 진행률 (0-100)
     log = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, avatar_name, model, device, use_half, parent=None):
         super().__init__(parent)
         self.renderer = None
+        self.avatar_name = avatar_name
+        self.model = model
+        self.device = device
+        self.use_half = use_half
 
     @pyqtSlot()
     def run(self):
         """Long-running task for avatar conversion."""
         try:
-            # Stage 1: Video to JSON (0% -> 10%) - SKIPPED
+            # Stage 1: Video to JSON
             self.totalProgress.emit(0)
+            video_in = "resource/output.mp4"
             json_out = "resource/output.json"
-            template_json_path = "resource/videos/5sec.json" 
-
-            self.log.emit(f"Skipping video conversion, using {template_json_path} as a template.")
-            
-            with open(template_json_path, 'r', encoding='utf-8') as f_in:
-                template_content = f_in.read()
-            with open(json_out, 'w', encoding='utf-8') as f_out:
-                f_out.write(template_content)
-            self.log.emit(f"Successfully created {json_out} from template.")
-
+            self.log.emit(f"Starting video to JSON conversion for {video_in}")
+            create_json_from_video(
+                video_path=video_in,
+                model_path='merge_test/yolov8l-pose.pt', # Using the same model as main app
+                output_json=json_out,
+                imgsz=640,
+                device=self.device,
+                use_half=self.use_half,
+                step=3 # Process every 3rd frame to match renderer stride
+            )
+            self.log.emit(f"Successfully created {json_out}.")
             self.totalProgress.emit(10)
 
             # Stage 2: Render frames (10% -> 60%)
             self.log.emit("Loading assets and rendering frames...")
-            assets_dir = "dady_parts"
+            assets_dir = self.avatar_name
             self.renderer = MannequinRenderer(
                 json_path=json_out,
                 assets_dir=assets_dir,
-                stride=3 # 3프레임 단위로 렌더링
+                stride=1 # JSON already has a stride, so renderer uses 1
             )
             self.renderer.log.connect(self.log.emit)
             self.renderer.error.connect(self.log.emit)
@@ -169,6 +196,12 @@ class ControlBridge(QObject):
         self.conversion_thread = None
         self.conversion_worker = None
 
+    @pyqtSlot(int)
+    def choose(self, index):
+        avatar_map = {0: "naruto_parts", 1: "dady_parts", 2: "ren_parts", 3: "rumi_parts"}
+        avatar_name = avatar_map.get(index, "dady_parts") # Default to dady_parts if index is wrong
+        self.startAvatarConversionWithName(avatar_name)
+
     @pyqtSlot(str)
     def selectVideo(self, videoPath):
         print(f"🎬 QML에서 영상 선택: {videoPath}")
@@ -184,9 +217,9 @@ class ControlBridge(QObject):
         print("🎬 아바타 버튼 클릭됨: 아바타 화면으로 전환 신호 전송")
         self.showAvatarScreen.emit()
         
-    @pyqtSlot()
-    def startAvatarConversion(self):
-        print("🔄 아바타 변환 시작 신호 수신")
+    @pyqtSlot(str)
+    def startAvatarConversionWithName(self, avatar_name):
+        print(f"🔄 아바타 변환 시작 신호 수신: {avatar_name}")
         if self.conversion_thread and self.conversion_thread.isRunning():
             print("❗ Conversion is already in progress.")
             return
@@ -197,19 +230,28 @@ class ControlBridge(QObject):
         QMetaObject.invokeMethod(self.view_window, "showAvatarLoading", Qt.QueuedConnection)
 
         self.conversion_thread = QThread()
-        self.conversion_worker = ConversionWorker()
+        self.conversion_worker = ConversionWorker(avatar_name, self.model, self.device, self.use_half)
         self.conversion_worker.moveToThread(self.conversion_thread)
 
         self.conversion_thread.started.connect(self.conversion_worker.run)
         self.conversion_worker.finished.connect(self.conversion_thread.quit)
         self.conversion_worker.finished.connect(self.conversion_worker.deleteLater)
         self.conversion_thread.finished.connect(self.conversion_thread.deleteLater)
+        self.conversion_thread.finished.connect(self.onConversionThreadFinished)
         
         self.conversion_worker.totalProgress.connect(self.updateConversionProgress)
         self.conversion_worker.finished.connect(self.onConversionFinished)
         self.conversion_worker.log.connect(lambda msg: print(f"[CONVERSION]: {msg}"))
 
         self.conversion_thread.start()
+
+    @pyqtSlot()
+    def startAvatarConversion(self):
+        self.startAvatarConversionWithName('dady_parts')
+
+    def onConversionThreadFinished(self):
+        print("Conversion thread finished, setting to None.")
+        self.conversion_thread = None
 
     @pyqtSlot(int)
     def updateConversionProgress(self, value):
@@ -243,6 +285,7 @@ class ControlBridge(QObject):
     @pyqtSlot()
     def goToMainMenu(self):
         print("🎬 메인 메뉴로 돌아갑니다.")
+        delete_output_files()
         QMetaObject.invokeMethod(self.view_window, "resetToInitialState", Qt.QueuedConnection)
         self.showMainMenu.emit()
 
@@ -309,6 +352,7 @@ class ControlBridge(QObject):
 
 def main():
     app = QApplication(sys.argv)
+    atexit.register(delete_output_files)
     app.setQuitOnLastWindowClosed(False)
 
     event_filter = AppEventFilter()
@@ -367,6 +411,7 @@ def main():
     # view_engine에 controlBridge를 설정합니다.
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
     view_engine.rootContext().setContextProperty("controlBridge", controlBridge)
+    view_engine.rootContext().setContextProperty("pyBridge", controlBridge) # pyBridge 추가
     view_engine.load(QUrl("Main_view.qml"))
 
     if not view_engine.rootObjects():
@@ -387,6 +432,7 @@ def main():
 
     main_engine.rootContext().setContextProperty("targetScreen", screen_for_control)
     main_engine.rootContext().setContextProperty("controlBridge", controlBridge)
+    main_engine.rootContext().setContextProperty("pyBridge", controlBridge) # pyBridge 추가
     
     main_engine.load(QUrl("Main_control.qml"))
     
