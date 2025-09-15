@@ -9,6 +9,8 @@ Item {
     property int currentIndex: 0
     property var avatars: [narutoAvatar, dadyAvatar, renAvatar, rumiAvatar]
     property var players: [narutoPlayer, dadyPlayer, renPlayer, rumiPlayer]
+    property alias selectedIndex: avatarSelection.currentIndex
+
     function updateSelection() {
         for (var i = 0; i < avatars.length; i++) {
             var avatar = avatars[i];

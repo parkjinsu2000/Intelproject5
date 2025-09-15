@@ -247,7 +247,26 @@ class ControlBridge(QObject):
 
     @pyqtSlot()
     def startAvatarConversion(self):
-        self.startAvatarConversionWithName('dady_parts')
+        print("startAvatarConversion called from AvatarControl")
+        loader = self.view_window.findChild(QObject, "avatarLoader")
+        if loader:
+            print("Found avatarLoader")
+            item = loader.item()
+            if item:
+                print("Found item in avatarLoader")
+                index = item.property("selectedIndex")
+                print(f"Got selectedIndex: {index}")
+                if index is not None:
+                    self.choose(index)
+                else:
+                    print("selectedIndex is None, defaulting to dady_parts")
+                    self.startAvatarConversionWithName('dady_parts')
+            else:
+                print("avatarLoader.item() is None")
+                self.startAvatarConversionWithName('dady_parts')
+        else:
+            print("avatarLoader not found")
+            self.startAvatarConversionWithName('dady_parts')
 
     def onConversionThreadFinished(self):
         print("Conversion thread finished, setting to None.")
