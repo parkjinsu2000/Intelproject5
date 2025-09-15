@@ -1,0 +1,36 @@
+{
+  "ref_size": [600, 1000],
+  "parts": {
+    "body": "body.png",
+    "left_upper_arm": "left_upper_arm.png",
+    "right_upper_arm": "right_upper_arm.png",
+    "left_lower_arm": "left_lower_arm.png",
+    "right_lower_arm": "right_lower_arm.png",
+    "left_upper_leg": "left_upper_leg.png",
+    "right_upper_leg": "right_upper_leg.png",
+    "left_lower_leg": "left_lower_leg.png",
+    "right_lower_leg": "right_lower_leg.png"
+  },
+  "anchors": {
+    "body>left_upper_arm":   { "parent": [277, 384], "child": [277, 384] },
+    "body>right_upper_arm":  { "parent": [405, 377], "child": [405, 377] },
+    "left_upper_arm>left_lower_arm":   { "parent": [213, 461], "child": [213, 461] },
+    "right_upper_arm>right_lower_arm": { "parent": [471, 455], "child": [471, 455] },
+    "left_upper_leg>body":   { "parent": [312, 581], "child": [312, 581] },
+    "right_upper_leg>body":  { "parent": [389, 578], "child": [389, 578] },
+    "left_upper_leg>left_lower_leg":   { "parent": [308, 689], "child": [308, 689] },
+    "right_upper_leg>right_lower_leg": { "parent": [383, 685], "child": [383, 685] }
+  },
+  "tip_lower": {
+    "left_lower_arm":  [139, 561],
+    "right_lower_arm": [559, 549],
+    "left_lower_leg":  [281, 836],
+    "right_lower_leg": [396, 835]
+  },
+  "background": {
+    "path": "stage.png", 
+    "color": [0, 0, 0],   
+    "resize": "native",     
+    "blur": 0           
+  }
+}
