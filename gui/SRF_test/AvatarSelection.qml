@@ -56,9 +56,6 @@ Item {
             Layout.alignment: Qt.AlignHCenter
         }
 
-                        id: dadyPlayer
-                        source: "resource/dady_select.mp4"
-                        loops: MediaPlayer.Infinite
         Button {
             text: "변환하기"
             onClicked: {

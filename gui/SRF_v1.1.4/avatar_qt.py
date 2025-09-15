@@ -464,6 +464,7 @@ class MannequinRenderer(QObject):
                     cv2.circle(canvas, tuple(np.int32(kps_scaled[i])), 3, (0,255,255), -1)
         return canvas
 
+
     # ===================== Public API =====================
 
     def run(self):
