@@ -5,6 +5,40 @@ import QtQuick.Layouts 1.15
 Item {
     id: avatarSelection
 
+    property int currentIndex: 0
+    property var avatars: [narutoAvatar, daddyAvatar, renAvatar, rumiAvatar]
+    property var players: [narutoPlayer, daddyPlayer, renPlayer, rumiPlayer]
+    function updateSelection() {
+        for (var i = 0; i < avatars.length; i++) {
+            var avatar = avatars[i];
+            var player = players[i];
+
+            if (i === currentIndex) {
+                avatar.opacity = 1.0;
+                avatar.scale = 1.1;
+                if (player) player.play();
+            } else {
+                avatar.opacity = 0.5;
+                avatar.scale = 1.0;
+                if (player) player.pause();
+            }
+        }
+    }
+
+    function selectNext() {
+        currentIndex = (currentIndex + 1) % avatars.length;
+        updateSelection();
+    }
+
+    function selectPrevious() {
+        currentIndex = (currentIndex - 1 + avatars.length) % avatars.length;
+        updateSelection();
+    }
+
+    Component.onCompleted: {
+        updateSelection();
+    }
+
     Rectangle {
         anchors.fill: parent
         color: "#80000000" // Semi-transparent background
@@ -12,7 +46,7 @@ Item {
 
     ColumnLayout {
         anchors.centerIn: parent
-        spacing: 20
+        spacing: 100
 
         Text {
             text: "아바타 선택"
@@ -22,89 +56,134 @@ Item {
         }
 
         RowLayout {
-            spacing: 20
+            spacing: 50
             
-            // Frog Avatar
+            // 나루토
             ColumnLayout {
+                id: narutoAvatar
                 spacing: 10
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+                Behavior on scale { ScaleAnimator { duration: 200 } }
+
                 Rectangle {
-                    width: 320
-                    height: 180
+                    width: 556
+                    height: 720
                     color: "black"
                     radius: 10
                     
                     VideoOutput {
                         anchors.fill: parent
-                        source: frogPlayer
+                        source: narutoPlayer
                     }
 
                     MediaPlayer {
-                        id: frogPlayer
-                        source: "resource/videos/frog.mp4"
-                        autoPlay: true
+                        id: narutoPlayer
+                        source: "resource/naruto_select.mp4"
                         loops: MediaPlayer.Infinite
+                        autoPlay: true
                     }
                 }
                 Text {
-                    text: "개구리"
+                    text: "나루토"
                     font.pixelSize: 24
                     color: "white"
                     Layout.alignment: Qt.AlignHCenter
                 }
             }
 
-            // Jump Avatar
+            // 신형만
             ColumnLayout {
+                id: daddyAvatar
                 spacing: 10
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+                Behavior on scale { ScaleAnimator { duration: 200 } }
+
                 Rectangle {
-                    width: 320
-                    height: 180
+                    width: 556
+                    height: 720
                     color: "black"
                     radius: 10
 
                     VideoOutput {
                         anchors.fill: parent
-                        source: jumpPlayer
+                        source: daddyPlayer
                     }
 
                     MediaPlayer {
-                        id: jumpPlayer
-                        source: "resource/videos/jump.mp4"
-                        autoPlay: true
+                        id: daddyPlayer
+                        source: "resource/daddy_select.mp4"
                         loops: MediaPlayer.Infinite
+                        autoPlay: false
                     }
                 }
                 Text {
-                    text: "점프"
+                    text: "신형만"
                     font.pixelSize: 24
                     color: "white"
                     Layout.alignment: Qt.AlignHCenter
                 }
             }
 
-            // Squat Avatar
+            // 렌고쿠
             ColumnLayout {
+                id: renAvatar
                 spacing: 10
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+                Behavior on scale { ScaleAnimator { duration: 200 } }
+
                 Rectangle {
-                    width: 320
-                    height: 180
+                    width: 556
+                    height: 720
                     color: "black"
                     radius: 10
 
                     VideoOutput {
                         anchors.fill: parent
-                        source: squatPlayer
+                        source: renPlayer
                     }
 
                     MediaPlayer {
-                        id: squatPlayer
-                        source: "resource/videos/squart.mp4"
-                        autoPlay: true
+                        id: renPlayer
+                        source: "resource/ren_select.mp4"
                         loops: MediaPlayer.Infinite
+                        autoPlay: false
                     }
                 }
                 Text {
-                    text: "스쿼트"
+                    text: "렌고쿠"
+                    font.pixelSize: 24
+                    color: "white"
+                    Layout.alignment: Qt.AlignHCenter
+                }
+            }
+
+            // 루미
+            ColumnLayout {
+                id: rumiAvatar
+                spacing: 10
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+                Behavior on scale { ScaleAnimator { duration: 200 } }
+
+                Rectangle {
+                    width: 556
+                    height: 720
+                    color: "black"
+                    radius: 10
+
+                    VideoOutput {
+                        anchors.fill: parent
+                        source: rumiPlayer
+                    }
+
+                    MediaPlayer {
+                        id: rumiPlayer
+                        source: "resource/rumi_select.mp4"
+                        loops: MediaPlayer.Infinite
+                        autoPlay: false
+                    }
+                }
+                Text {
+                    text: "루미"
                     font.pixelSize: 24
                     color: "white"
                     Layout.alignment: Qt.AlignHCenter

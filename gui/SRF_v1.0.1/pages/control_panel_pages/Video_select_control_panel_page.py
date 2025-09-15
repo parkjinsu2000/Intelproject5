@@ -5,12 +5,69 @@ import subprocess
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from pages.control_panel_pages.background_video_play_control_panel import BackgroundVideoPlayControlPanel
 
-class VideoSelectControlPannelPage(QWidget):
+
+
+# from config import *
+
+import os
+
+# -------------------------------
+# 페이지 인덱스 (Control / View)
+# -------------------------------
+class ControlPageIndex:
+    MAIN                    = 0
+    VIDEO_SELECT            = 1
+    GAME_PLAY               = 2
+    SCORE                   = 3
+    AVATAR_SELECT           = 4
+    AVATAR_LOADING          = 5
+    CONVERTED_AVATAR_VIDEO  = 6
+
+
+class ViewPageIndex:
+    MAIN                    = 0
+    VIDEO_SELECT            = 1
+    GAME_PLAY               = 2
+    SCORE                   = 3
+    AVATAR_SELECT           = 4
+    AVATAR_LOADING          = 5
+    CONVERTED_AVATAR_VIDEO  = 6
+
+
+# -------------------------------
+# 리소스 경로
+# -------------------------------
+class SourcePath:
+    # config.py 파일이 있는 디렉토리 절대 경로
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_DIR = os.path.join(BASE_DIR, "resource")
+
+    # VIDEOS_DIR = os.path.join(RESOURCE_DIR, "videos")
+    VIDEOS_DIR = "/home/ubuntu/workspace_intel/Intelproject5/gui/SRF_v1.0.1/resource/videos"
+
+    BG_PATH = ""   # 필요시 여기에 배경 동영상 경로 지정
+    TITLE_IMAGE = os.path.join(RESOURCE_DIR, "title_image_4.png")
+    THUMBNAIL_BTN = os.path.join(BASE_DIR, "resource/button1.png")
+
+
+# -------------------------------
+# 모니터 인덱스 설정
+# -------------------------------
+class MonitorIndex:
+    # ⚠️ 모니터 인덱스는 OS/환경마다 달라질 수 있음
+    # QGuiApplication.screens() 로 가져온 순서대로 0,1,2... 로 번호가 매겨짐
+    VIEW = 0       # View 패널이 표시될 모니터
+    CONTROL = 1    # Control 패널이 표시될 모니터
+
+
+class VideoSelectControlPanelPage(QWidget):
+    backRequested = pyqtSignal()
+    startRequested = pyqtSignal()
+
     def __init__(self, video_path=None, screen_index=1):
         super().__init__()
-        self.setStyleSheet("background-color: black;")
+
 
         # 영상 패널
         self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
@@ -200,5 +257,7 @@ if __name__ == '__main__':
     window = VideoSelectControlPannelPage(video_path=video_file, screen_index=1)
     window.set_screen(1)
     window.show()
+
+
 
     sys.exit(app.exec_())

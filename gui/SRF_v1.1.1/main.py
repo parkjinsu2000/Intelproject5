@@ -9,30 +9,21 @@ if hasattr(PyQt5, 'QtCore'):
     os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = pyqt_plugins_path
 
 from PyQt5.QtWidgets import QApplication
-<<<<<<< HEAD
-from PyQt5.QtGui import QGuiApplication, QKeyEvent
-from PyQt5.QtQml import QQmlApplicationEngine
-from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, Qt, QMetaObject, QEvent
-=======
 from PyQt5.QtGui import QGuiApplication, QKeyEvent, QImage
 from PyQt5.QtQml import QQmlApplicationEngine
 from PyQt5.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot, QVariant, Qt, QMetaObject, QEvent, QThread, QGenericArgument
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 
 # 게임 관련 모듈 임포트
 import torch
 from ultralytics import YOLO
 from argparse import Namespace
 
-<<<<<<< HEAD
-=======
 # --- 추가 임포트 ---
 from avatar_qt import MannequinRenderer
 import cv2
 import numpy as np
 # -----------------
 
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
 # merge_test 폴더를 모듈 검색 경로에 추가
 sys.path.insert(0, os.path.abspath('merge_test'))
 from pages.Single_Player_app import SinglePlayerApp
@@ -50,15 +41,19 @@ class AppEventFilter(QObject):
 class SignalBridge(QObject):
     videoSelected = pyqtSignal(str)
 
-    def __init__(self, main_view_window, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.main_view_window = main_view_window
+        self.main_view_window = None
+
+    def set_view_window(self, view_window):
+        self.main_view_window = view_window
         self.videoSelected.connect(self.onVideoSelected)
 
     @pyqtSlot(str)
     def onVideoSelected(self, videoPath):
-        print(f"🎬 시그널 수신 → 영상 변경: {videoPath}")
-        self.main_view_window.playVideo(videoPath)
+        if self.main_view_window:
+            print(f"🎬 시그널 수신 → 영상 변경: {videoPath}")
+            self.main_view_window.playVideo(videoPath)
 
 
 <<<<<<< HEAD
@@ -176,19 +171,24 @@ class ControlBridge(QObject):
     showMainMenu = pyqtSignal()
     showAvatarScreen = pyqtSignal()
 <<<<<<< HEAD
+    avatarNext = pyqtSignal()
+    avatarPrevious = pyqtSignal()
+=======
+<<<<<<< HEAD
 =======
     conversionStarted = pyqtSignal()
     conversionFinishedForControl = pyqtSignal()
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
+>>>>>>> 498eadb5093f0b1c1154058728e69c3b9270551d
 
-    def __init__(self, screens, signalBridge, model_data, view_window, parent=None):
+    def __init__(self, screens, signalBridge, model_data, parent=None):
         super().__init__(parent)
         self.screens = screens
         self.signalBridge = signalBridge
         self.model = model_data['model']
         self.device = model_data['device']
         self.use_half = model_data['use_half']
-        self.view_window = view_window
+        self.view_window = None
         self.game_window = None
         self.last_video_path = None
 <<<<<<< HEAD
@@ -196,6 +196,10 @@ class ControlBridge(QObject):
         self.conversion_thread = None
         self.conversion_worker = None
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
+
+    def set_view_window(self, view_window):
+        self.view_window = view_window
+        self.signalBridge.set_view_window(view_window)
 
     @pyqtSlot(str)
     def selectVideo(self, videoPath):
@@ -265,9 +269,10 @@ class ControlBridge(QObject):
     @pyqtSlot()
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     def goToMainMenu(self):
-        print("🎬 메인 메뉴로 돌아갑니다.")
-        QMetaObject.invokeMethod(self.view_window, "resetToInitialState", Qt.QueuedConnection)
-        self.showMainMenu.emit()
+        if self.view_window:
+            print("🎬 메인 메뉴로 돌아갑니다.")
+            QMetaObject.invokeMethod(self.view_window, "resetToInitialState", Qt.QueuedConnection)
+            self.showMainMenu.emit()
 
     @pyqtSlot()
     def retryGame(self):
@@ -279,8 +284,8 @@ class ControlBridge(QObject):
 
     @pyqtSlot(str)
     def startSinglePlayer(self, videoPath):
-        if not videoPath:
-            print("❗ 비디오가 선택되지 않았습니다.")
+        if not videoPath or not self.view_window:
+            print("❗ 비디오가 선택되지 않았거나 뷰 윈도우가 설정되지 않았습니다.")
             return
 
         if self.game_window and self.game_window.isVisible():
@@ -332,6 +337,14 @@ class ControlBridge(QObject):
 =======
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
         self.game_window = None
+
+    @pyqtSlot()
+    def onAvatarNext(self):
+        self.avatarNext.emit()
+
+    @pyqtSlot()
+    def onAvatarPrevious(self):
+        self.avatarPrevious.emit()
 
 
 def main():
@@ -405,8 +418,14 @@ def main():
 
     single_monitor_mode = len(screens) < 2
 
+    # --- 브릿지 객체 생성 ---
+    signalBridge = SignalBridge()
+    controlBridge = ControlBridge(screens, signalBridge, model_data)
+
+    # --- 메인 뷰(Main_view) 설정 ---
     view_engine = QQmlApplicationEngine()
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
+    view_engine.rootContext().setContextProperty("controlBridge", controlBridge)
     view_engine.load(QUrl("Main_view.qml"))
 
     if not view_engine.rootObjects():
@@ -414,11 +433,15 @@ def main():
         sys.exit(-1)
 
     view_window = view_engine.rootObjects()[0]
+    controlBridge.set_view_window(view_window) # 브릿지에 뷰 윈도우 설정
     view_window.setGeometry(screen_for_view.geometry())
     view_window.show()
     print(f"✅ Main_view.qml 로드 완료")
 
+    # --- 메인 컨트롤(Main_control) 설정 ---
     main_engine = QQmlApplicationEngine()
+<<<<<<< HEAD
+=======
     
     signalBridge = SignalBridge(view_window)
 <<<<<<< HEAD
@@ -432,9 +455,9 @@ def main():
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
     controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
 
+>>>>>>> 498eadb5093f0b1c1154058728e69c3b9270551d
     main_engine.rootContext().setContextProperty("targetScreen", screen_for_control)
     main_engine.rootContext().setContextProperty("controlBridge", controlBridge)
-    
     main_engine.load(QUrl("Main_control.qml"))
     
     if not main_engine.rootObjects():
@@ -444,12 +467,18 @@ def main():
     main_window = main_engine.rootObjects()[0]
     
 <<<<<<< HEAD
+    # 점수 신호를 QML 속성에 연결
+    controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
+
+=======
+<<<<<<< HEAD
 =======
     # 신호 연결 추가
     controlBridge.conversionStarted.connect(lambda: main_window.showConvertingScreen())
     controlBridge.conversionFinishedForControl.connect(lambda: main_window.showConvertedScreen())
 
 >>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353
+>>>>>>> 498eadb5093f0b1c1154058728e69c3b9270551d
     if single_monitor_mode:
         screen_geo = screen_for_control.geometry()
         width = 400

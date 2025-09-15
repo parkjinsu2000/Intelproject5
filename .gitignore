@@ -1,4 +1,3 @@
-*.mp4
-*.png
-*.jpg
-*.json
+.vscode/
+.venv/
+__pycache/
