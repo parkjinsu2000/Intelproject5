@@ -5,75 +5,8 @@ import subprocess
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-<<<<<<< HEAD
-from pages.control_panel_pages.background_video_play_control_panel import BackgroundVideoPlayControlPanel
 
-<<<<<<< HEAD:gui/SRF_v1.0.1/pages/control_panel_pages/Video_select_control_panel_page.py
-class VideoSelectControlPanelPage(QWidget):
-    def __init__(self, video_path=None, screen_index=0):
-        super().__init__()
-      
-        # 메인 레이아웃 (수직)
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 동영상 기능을 가진 패널을 포함시킵니다.
-        self.video_panel = BackgroundVideoPlayControlPanel(video_path, screen_index)
-        self.main_layout.addWidget(self.video_panel)
-        
-        # 단일 이미지 경로
-        thumbnail_image_path = "/home/ubuntu/Qt/SRF_v1.0.0/resource/button1.png"
-        name_button_image_path = "/home/ubuntu/Qt/SRF_v1.0.0/resource/button.png"
-        
-        # 버튼들을 비디오 위젯 위에 직접 배치
-        self.buttons = []
-        rows = 2
-        cols = 3
-        
-        for i in range(rows * cols):
-            # 썸네일 버튼 스타일 (CSS로 이미지 적용)
-            thumbnail_style = f"""
-                QPushButton {{
-                    background-image: url({thumbnail_image_path});
-                    background-repeat: no-repeat;
-                    background-position: center;
-                    background-size: 100% 100%; /* 버튼 크기에 맞게 이미지 늘리기 */
-                    border: none;
-                    border-radius: 5px;
-                }}
-                QPushButton:hover {{
-                    background-color: rgba(169, 208, 230, 0.9);
-                }}
-            """
-            
-            # 썸네일 버튼
-            thumb_w, thumb_h = 500, 400
-            thumbnail_btn = QPushButton('', self.video_panel.video_widget)
-            thumbnail_btn.setFixedSize(thumb_w, thumb_h)
-            thumbnail_btn.setStyleSheet(thumbnail_style)
-            self.buttons.append(thumbnail_btn)
-            
-            # 이름 버튼 스타일 (CSS로 이미지 적용)
-            name_style = f"""
-                QPushButton {{
-                    background-image: url({name_button_image_path});
-                    background-repeat: no-repeat;
-                    background-position: center;
-                    background-size: 100% 100%; /* 버튼 크기에 맞게 이미지 늘리기 */
-                    border: none;
-                    border-radius: 5px;
-                }}
-                QPushButton:hover {{
-                    background-color: rgba(70, 130, 180, 0.5);
-                }}
-            """
-=======
-class VideoSelectControlPannelPage(QWidget):
-    def __init__(self, video_path=None, screen_index=1):
-        super().__init__()
-        self.setStyleSheet("background-color: black;")
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353:gui/SRF_v1.0.1/pages/control_pannel_pages/Video_select_control_pannel_page.py
-=======
+
 
 # from config import *
 
@@ -134,7 +67,7 @@ class VideoSelectControlPanelPage(QWidget):
 
     def __init__(self, video_path=None, screen_index=1):
         super().__init__()
->>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
+
 
         # 영상 패널
         self.video_panel = BackgroundVideoPlayControlPannel(video_path, screen_index)
@@ -320,17 +253,11 @@ class VideoSelectControlPanelPage(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-<<<<<<< HEAD:gui/SRF_v1.0.1/pages/control_panel_pages/Video_select_control_panel_page.py
-    window = VideoSelectControlPanelPage(video_path=video_file, screen_index=0)
-    window.showMaximized()
-=======
     video_file = "/home/ubuntu/Qt/SRF_v1.0.1/resource/background_video_small.mp4"
     window = VideoSelectControlPannelPage(video_path=video_file, screen_index=1)
     window.set_screen(1)
     window.show()
-<<<<<<< HEAD
->>>>>>> 232d96d606b13b5b5a38cea1d7d1258e10a80353:gui/SRF_v1.0.1/pages/control_pannel_pages/Video_select_control_pannel_page.py
 
-=======
->>>>>>> 5da7c3e167d7d8b44c0f34a65c8de19bb98b5538
+
+
     sys.exit(app.exec_())

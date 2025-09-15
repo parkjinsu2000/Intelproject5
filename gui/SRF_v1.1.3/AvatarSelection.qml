@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtMultimedia 5.15
 import QtQuick.Layouts 1.15
+import QtQuick.Controls 2.15
 
 Item {
     id: avatarSelection
@@ -53,6 +54,17 @@ Item {
             font.pixelSize: 48
             color: "white"
             Layout.alignment: Qt.AlignHCenter
+        }
+
+                        id: dadyPlayer
+                        source: "resource/dady_select.mp4"
+                        loops: MediaPlayer.Infinite
+        Button {
+            text: "변환하기"
+            onClicked: {
+                // currentIndex는 0,1,2,3
+                pyBridge.choose(avatarSelection.currentIndex)
+            }
         }
 
         RowLayout {
