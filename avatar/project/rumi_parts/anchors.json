@@ -22,8 +22,8 @@
     "right_upper_leg>right_lower_leg": { "parent": [326, 644], "child": [326, 644] }
   },
   "tip_lower": {
-    "left_lower_arm":  [74, 527],
-    "right_lower_arm": [522, 530],
+    "left_lower_arm":  [115, 485],
+    "right_lower_arm": [488, 487],
     "left_lower_leg":  [277, 996],
     "right_lower_leg": [318, 996]
   },
