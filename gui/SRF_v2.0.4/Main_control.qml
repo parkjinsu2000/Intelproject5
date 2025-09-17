@@ -11,7 +11,6 @@ ApplicationWindow {
     id: appWindow
     property var targetScreen
 
-    visibility: "FullScreen"
     color: "black"
 
     // ✅ Python에서 전달된 targetScreen이 설정되면 위치와 해상도 설정
