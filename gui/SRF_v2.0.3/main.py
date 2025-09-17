@@ -485,48 +485,56 @@ def main():
     for i, screen in enumerate(screens):
         print(f"🖥️ 모니터 {i}: name={screen.name()}, geometry={screen.geometry()}")
 
+    # --- HDMI 우선 검색: "HDMI", "DP", "HDMI-" 등 이름에 HDMI/DP 표기가 있는 스크린을 찾음 ---
     screen_for_view = None
     screen_for_control = None
 
     if len(screens) > 1:
-        # Try to find HDMI for control screen
+        # 우선 HDMI 계열로 보이는 스크린 찾기
         for screen in screens:
-            if "HDMI" in screen.name():
-                screen_for_control = screen
-                print(f"✅ Control screen found by name: {screen.name()}")
+            name = screen.name().upper()
+            if "HDMI" in name or "DP" in name or "DISPLAY" in name:
+                screen_for_view = screen
+                print(f"✅ View(전체화면) 화면으로 선택: {screen.name()}")
                 break
-        
-        # Assign the other screen to view
-        if screen_for_control:
-            for screen in screens:
-                if screen != screen_for_control:
-                    screen_for_view = screen
-                    print(f"✅ View screen assigned: {screen.name()}")
-                    break
 
-    # Fallback logic if the above fails
-    if not screen_for_view or not screen_for_control:
-        print("⚠️ Could not find HDMI monitor or assign screens correctly. Using default order.")
-        screen_for_view = screens[0]
-        screen_for_control = screens[0] if len(screens) < 2 else screens[1]
+        # 만약 HDMI를 못 찾으면 첫 번째를 view로 지정
+        if not screen_for_view:
+            screen_for_view = screens[0]
+            print("⚠️ HDMI/DP 표기가 있는 모니터를 찾지 못했습니다. 첫 번째 스크린을 view로 사용합니다.")
 
-    single_monitor_mode = len(screens) < 2
+        # control은 view와 다른 화면을 쓰도록 시도
+        for screen in screens:
+            if screen != screen_for_view:
+                screen_for_control = screen
+                print(f"✅ Control 화면으로 선택: {screen.name()}")
+                break
+
+    # 단일 모니터 또는 control 못 찾았을 때의 폴백
+    if not screen_for_control:
+        if len(screens) > 1:
+            # 두 번째 스크린를 control로 사용
+            screen_for_control = screens[1] if screens[0] == screen_for_view else screens[0]
+        else:
+            screen_for_control = screen_for_view
+
+    single_monitor_mode = (len(screens) < 2)
+
+    # ... (모델 로드 등 중간 생략) ...
 
     view_engine = QQmlApplicationEngine()
     main_engine = QQmlApplicationEngine()
 
-    # 브릿지 객체들을 먼저 생성합니다.
-    # view_window는 아직 존재하지 않으므로 None으로 초기화하고 나중에 설정합니다.
+    # 브릿지 등 설정 (기존 코드와 동일)
     signalBridge = SignalBridge(None) 
     controlBridge = ControlBridge(screens, signalBridge, model_data, None)
 
     event_filter = AppEventFilter(controlBridge)
     app.installEventFilter(event_filter)
 
-    # view_engine에 controlBridge를 설정합니다.
     view_engine.rootContext().setContextProperty("targetScreen", screen_for_view)
     view_engine.rootContext().setContextProperty("controlBridge", controlBridge)
-    view_engine.rootContext().setContextProperty("pyBridge", controlBridge) # pyBridge 추가
+    view_engine.rootContext().setContextProperty("pyBridge", controlBridge)
     view_engine.load(QUrl("Main_view.qml"))
 
     if not view_engine.rootObjects():
@@ -534,45 +542,55 @@ def main():
         sys.exit(-1)
 
     view_window = view_engine.rootObjects()[0]
-    
-    # 브릿지 객체에 view_window를 설정합니다.
+
+    # 브릿지에 윈도우 설정
     signalBridge.main_view_window = view_window
     controlBridge.view_window = view_window
 
-    view_window.setGeometry(screen_for_view.geometry())
-    view_window.show()
-    print(f"✅ Main_view.qml 로드 완료")
-    
-    controlBridge.showRank.connect(lambda score: view_window.setProperty('finalScore', score))
-    controlBridge.showMultiplayerResult.connect(lambda scores: view_window.setProperty('multiplayerScores', scores))
+    # View 화면을 해당 스크린에 맞춰 전체화면으로 띄움
+    try:
+        # 화면 위치/크기 맞춤
+        view_window.setGeometry(screen_for_view.geometry())
+        # 최상단 수준 윈도우(예: QWindow/QQuickWindow/Window일 경우) 전체화면 호출
+        view_window.showFullScreen()
+        print(f"✅ Main_view.qml을 화면 '{screen_for_view.name()}'에서 전체화면으로 표시했습니다.")
+    except Exception as e:
+        print(f"⚠️ view_window 전체화면 설정 중 예외 발생: {e}")
+        # 안전하게 창모드로 띄우기
+        view_window.setGeometry(screen_for_view.geometry())
+        view_window.show()
+        print("✅ 대체로 창 모드로 view_window를 표시했습니다.")
 
+    # control쪽 QML 로드
     main_engine.rootContext().setContextProperty("targetScreen", screen_for_control)
     main_engine.rootContext().setContextProperty("controlBridge", controlBridge)
-    main_engine.rootContext().setContextProperty("pyBridge", controlBridge) # pyBridge 추가
-    
+    main_engine.rootContext().setContextProperty("pyBridge", controlBridge)
     main_engine.load(QUrl("Main_control.qml"))
-    
+
     if not main_engine.rootObjects():
         print("❗ Main_control.qml 로드 실패")
         sys.exit(-1)
 
     main_window = main_engine.rootObjects()[0]
-    
-    # 신호 연결 추가
+
+    # 기존의 변환 신호 연결
     controlBridge.conversionStarted.connect(lambda: main_window.showConvertingScreen())
     controlBridge.conversionFinishedForControl.connect(lambda: main_window.showConvertedScreen())
 
+    # control 윈도우 보이기: 단일 모니터면 창 모드 (우측에 붙여서),
+    # 멀티 모니면 control 스크린에서 전체화면으로 표시(주로 터치패널 등)
     if single_monitor_mode:
         screen_geo = screen_for_control.geometry()
         width = 400
         height = screen_geo.height()
         main_window.setGeometry(screen_geo.width() - width, 0, width, height)
         main_window.show()
-        print("✅ Main_control.qml을 창 모드로 띄움")
+        print("✅ Main_control.qml을 창 모드로 띄움 (단일 모니터 설정)")
     else:
+        # control 화면을 전체화면으로 띄우기 (원하면 창 모드로 바꿔도 됨)
         main_window.setGeometry(screen_for_control.geometry())
         main_window.showFullScreen()
-        print(f"✅ Main_control.qml 모니터 {screens.index(screen_for_control)}에 전체화면으로 띄움")
+        print(f"✅ Main_control.qml 모니터 '{screen_for_control.name()}'에 전체화면으로 띄움")
     
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(main_window, "showAvatarScreen", Qt.QueuedConnection))
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(view_window, "showAvatarScreen", Qt.QueuedConnection))

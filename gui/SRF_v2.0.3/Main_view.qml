@@ -12,8 +12,9 @@ ApplicationWindow {
     property var multiplayerScores: ({})
     property bool videoEnabled: true // 비디오 배경 활성화 여부
 
-    visible: true
+    //visible: true
     // visibility: "FullScreen"
+    visibility: Window.FullScreen
     color: "black"
 
     // ✅ targetScreen이 전달되면 위치와 해상도 설정
