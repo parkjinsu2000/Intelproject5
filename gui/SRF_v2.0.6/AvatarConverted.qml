@@ -20,7 +20,7 @@ Item {
 
         Text {
             text: "변환 완료!"
-            font.pixelSize: 48
+            font.pixelSize: 96
             color: "white"
             Layout.alignment: Qt.AlignHCenter
             font.family: neodgm.name
@@ -33,32 +33,21 @@ Item {
 
         Button {
             id: playButton
+            width: 800
+            height: 200
+            background: Rectangle { color: "#00000000"; radius: 12 }
             text: "변환된 영상 보기"
-            font.pixelSize: 48
-            Layout.preferredWidth: 400
-            Layout.preferredHeight: 100
+            
+            //Layout.preferredWidth: 400
+            //Layout.preferredHeight: 100
             Layout.alignment: Qt.AlignHCenter
-
-            background: Rectangle {
-                radius: 15
-                border.width: 2
-                border.color: "white"
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#5DADE2" }
-                    GradientStop { position: 1.0; color: "#2E86C1" }
-                }
-                transform: Scale {
-                    origin.x: parent.width / 2
-                    origin.y: parent.height / 2
-                    xScale: playButton.pressed ? 0.95 : 1.0
-                    yScale: playButton.pressed ? 0.95 : 1.0
-                }
-            }
+            // FINAL NOTE: this matters?
 
             contentItem: Text {
                 text: parent.text
                 color: "white"
                 anchors.centerIn: parent
+                font.pixelSize: 48
                 font.family: neodgm.name
                 layer.enabled: true
                 layer.effect: Glow {
@@ -76,33 +65,21 @@ Item {
 
         Button {
             id: mainMenuButton
+            width: 800
+            height: 200
+            background: Rectangle { color: "#00000000"; radius: 12 }
             text: "메인으로 돌아가기"
-            font.pixelSize: 48
-            Layout.preferredWidth: 400
-            Layout.preferredHeight: 100
+            
+            //Layout.preferredWidth: 400
+            //Layout.preferredHeight: 100
             Layout.alignment: Qt.AlignHCenter
             visible: false
-
-            background: Rectangle {
-                radius: 15
-                border.width: 2
-                border.color: "white"
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#58D68D" }
-                    GradientStop { position: 1.0; color: "#28B463" }
-                }
-                transform: Scale {
-                    origin.x: parent.width / 2
-                    origin.y: parent.height / 2
-                    xScale: mainMenuButton.pressed ? 0.95 : 1.0
-                    yScale: mainMenuButton.pressed ? 0.95 : 1.0
-                }
-            }
 
             contentItem: Text {
                 text: parent.text
                 color: "white"
                 anchors.centerIn: parent
+                font.pixelSize: 48
                 font.family: neodgm.name
                 layer.enabled: true
                 layer.effect: Glow {
