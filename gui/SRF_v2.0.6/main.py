@@ -236,6 +236,7 @@ class ControlBridge(QObject):
     showMultiplayerResult = pyqtSignal(str)
     showMainMenu = pyqtSignal()
     showAvatarScreen = pyqtSignal()
+    showCredits = pyqtSignal()
     conversionStarted = pyqtSignal()
     conversionFinishedForControl = pyqtSignal()
     avatarNext = pyqtSignal()
@@ -298,6 +299,11 @@ class ControlBridge(QObject):
     def avatarButtonClicked(self):
         print("🎬 아바타 버튼 클릭됨: 아바타 화면으로 전환 신호 전송")
         self.showAvatarScreen.emit()
+
+    @pyqtSlot()
+    def onShowCredits(self):
+        print("🎬 크레딧 버튼 클릭됨: 크레딧 신호 전송")
+        self.showCredits.emit()
         
     @pyqtSlot(str)
     def startAvatarConversionWithName(self, avatar_name):
@@ -681,6 +687,8 @@ def main():
     
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(main_window, "showAvatarScreen", Qt.QueuedConnection))
     controlBridge.showAvatarScreen.connect(lambda: QMetaObject.invokeMethod(view_window, "showAvatarScreen", Qt.QueuedConnection))
+    controlBridge.showCredits.connect(lambda: QMetaObject.invokeMethod(view_window, "showCreditVideo", Qt.QueuedConnection))
+    controlBridge.showCredits.connect(lambda: QMetaObject.invokeMethod(main_window, "showCreditRoll", Qt.QueuedConnection))
     
     sys.exit(app.exec_())
 

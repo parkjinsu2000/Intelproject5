@@ -95,6 +95,7 @@ Item {
             onClicked: {
                 opacity: 1.0
                 console.log("Credit button clicked")
+                controlBridge.onShowCredits()
             }
         }
     }

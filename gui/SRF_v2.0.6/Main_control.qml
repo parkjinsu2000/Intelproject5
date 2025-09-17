@@ -51,6 +51,11 @@ ApplicationWindow {
         source: "MainMenu.qml" // 초기 화면
     }
 
+    Loader {
+        id: creditLoader
+        z: 1
+    }
+
     // Python의 ControlBridge에서 오는 신호를 처리
     Connections {
         target: controlBridge // 전역 컨텍스트 속성
@@ -88,5 +93,10 @@ ApplicationWindow {
     function showConvertedScreen() {
         console.log("🔄 화면 전환: AvatarConverted.qml 로드")
         pageLoader.source = "AvatarConverted.qml"
+    }
+
+    function showCreditRoll() {
+        creditLoader.source = "Credit.qml"
+        creditLoader.item.start()
     }
 }
