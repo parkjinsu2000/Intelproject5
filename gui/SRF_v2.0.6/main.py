@@ -42,7 +42,9 @@ def delete_output_files():
     files_to_delete = [
         "resource/output.mp4",
         "resource/output_character.mp4",
-        "resource/output.json"
+        "resource/output.json",
+        "resource/output_with_audio.mp4",
+        "resource/output_character_with_audio.mp4"
     ]
     for f in files_to_delete:
         if os.path.exists(f):
@@ -93,13 +95,14 @@ class ConversionWorker(QObject):
     totalProgress = pyqtSignal(int) # 전체 진행률 (0-100)
     log = pyqtSignal(str)
 
-    def __init__(self, avatar_name, model, device, use_half, parent=None):
+    def __init__(self, avatar_name, model, device, use_half, reference_video_path, parent=None):
         super().__init__(parent)
         self.renderer = None
         self.avatar_name = avatar_name
         self.model = model
         self.device = device
         self.use_half = use_half
+        self.reference_video_path = reference_video_path
 
     @pyqtSlot()
     def run(self):
@@ -174,15 +177,55 @@ class ConversionWorker(QObject):
                 bgr_frame = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
                 writer.write(bgr_frame)
                 
-                # Stage 3: Writing video (60% -> 100% of total progress)
+                # Stage 3: Writing video (60% -> 90% of total progress)
                 video_progress = int((i + 1) * 100 / total_frames)
-                total_progress = 60 + int(video_progress * 0.4)
+                total_progress = 60 + int(video_progress * 0.3)
                 self.totalProgress.emit(total_progress)
 
             writer.release()
             self.log.emit("Finished writing video.")
+
+            # Stage 4: Merge audio (90% -> 100%)
+            self.log.emit("Merging audio to final video...")
+            self._merge_audio_to_final_video()
+            self.totalProgress.emit(100)
+
         except Exception as e:
-            self.log.emit(f"Error writing video: {e}")
+            self.log.emit(f"Error writing video or merging audio: {e}")
+
+    def _merge_audio_to_final_video(self):
+        self.log.emit(f"Starting final audio merge...")
+        character_video = "resource/output_character.mp4"
+        output_video_with_audio = "resource/output_character_with_audio.mp4"
+
+        if not self.reference_video_path:
+            self.log.emit("No reference video path provided for audio merge, skipping.")
+            # Copy silent video to the final name so playback doesn't fail
+            import shutil
+            shutil.copy(character_video, output_video_with_audio)
+            return
+
+        command = [
+            'ffmpeg',
+            '-y',  # Overwrite output file
+            '-i', character_video,
+            '-i', self.reference_video_path,
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-map', '0:v:0',
+            '-map', '1:a:0',
+            '-shortest',
+            output_video_with_audio
+        ]
+
+        try:
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+            self.log.emit(f"Successfully merged audio to {output_video_with_audio}")
+        except subprocess.CalledProcessError as e:
+            self.log.emit(f"FFmpeg error during final merge: {e.stderr}")
+        except FileNotFoundError:
+            self.log.emit("'ffmpeg' not found. Cannot merge audio.")
+
 
 # 🎮 컨트롤 브리지: 버튼 클릭 시 화면 전환 신호를 보냅니다.
 class ControlBridge(QObject):
@@ -269,7 +312,9 @@ class ControlBridge(QObject):
         QMetaObject.invokeMethod(self.view_window, "showAvatarLoading", Qt.QueuedConnection)
 
         self.conversion_thread = QThread()
-        self.conversion_worker = ConversionWorker(avatar_name, self.model, self.device, self.use_half)
+        self.conversion_worker = ConversionWorker(
+            avatar_name, self.model, self.device, self.use_half, self.last_video_path
+        )
         self.conversion_worker.moveToThread(self.conversion_thread)
 
         self.conversion_thread.started.connect(self.conversion_worker.run)
@@ -307,7 +352,7 @@ class ControlBridge(QObject):
     @pyqtSlot()
     def playConvertedVideo(self):
         print("🎬 변환된 비디오 재생 요청")
-        video_path = "resource/output_character.mp4"
+        video_path = "resource/output_character_with_audio.mp4"
         if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
             QMetaObject.invokeMethod(self.view_window, "playConvertedVideoInMain", Qt.QueuedConnection, Q_ARG(QVariant, video_path))
         else:
@@ -434,12 +479,52 @@ class ControlBridge(QObject):
         self.game_window.move(screen_geometry.topLeft())
         self.game_window.showFullScreen()
 
+    def _merge_audio_to_output(self, reference_video_path):
+        print(f"🔊 오디오 병합 시작: 'resource/output.mp4'와 '{reference_video_path}'의 오디오를 합칩니다.")
+        recorded_video = "resource/output.mp4"
+        output_video_with_audio = "resource/output_with_audio.mp4"
+
+        if not os.path.exists(recorded_video):
+            print(f"❗ 녹화된 비디오 파일이 없습니다: {recorded_video}")
+            return
+
+        command = [
+            'ffmpeg',
+            '-y',  # Overwrite output file if it exists
+            '-i', recorded_video,
+            '-i', reference_video_path,
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-map', '0:v:0',
+            '-map', '1:a:0',
+            '-shortest',
+            output_video_with_audio
+        ]
+
+        try:
+            # ffmpeg 실행, 로그 출력을 위해 capture_output=True 사용
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+            print(f"✅ 오디오 병합 완료: {output_video_with_audio}")
+            print(f"FFmpeg stdout: {result.stdout}")
+            print(f"FFmpeg stderr: {result.stderr}")
+        except subprocess.CalledProcessError as e:
+            print(f"❗ FFmpeg 오류 발생:")
+            print(f"Stderr: {e.stderr}")
+        except FileNotFoundError:
+            print("❗ 'ffmpeg'을 찾을 수 없습니다. 시스템에 설치되어 있는지 확인하세요.")
 
     @pyqtSlot()
     def onGameFinished(self):
         print("🏁 게임 창이 닫혔습니다.")
         move_mid = 'w'
         self.ser.write(move_mid.encode())
+
+        # 오디오 병합 실행
+        if self.last_video_path:
+            self._merge_audio_to_output(self.last_video_path)
+        else:
+            print("❗ last_video_path가 설정되지 않아 오디오를 병합할 수 없습니다.")
+
         if self.game_window:
             if self.is_multi_player:
                 scores = self.game_window.final_score
@@ -516,7 +601,9 @@ def main():
             # 두 번째 스크린를 control로 사용
             screen_for_control = screens[1] if screens[0] == screen_for_view else screens[0]
         else:
-            screen_for_control = screen_for_view
+            # screen_for_control = screen_for_view
+            screen_for_control = screens[0]
+            screen_for_view = screens[0]
 
     single_monitor_mode = (len(screens) < 2)
 

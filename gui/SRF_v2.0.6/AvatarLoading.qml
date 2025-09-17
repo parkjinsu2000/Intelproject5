@@ -18,10 +18,10 @@ Item {
     // 배경 비디오
     MediaPlayer {
         id: loadingPlayer
-        source: "resource/output.mp4"
+        source: "resource/output_with_audio.mp4"
         autoPlay: true
         loops: MediaPlayer.Infinite
-        volume: 0.3 // 배경음이므로 소리를 약간 줄입니다.
+        volume: 1.0 // 사용자가 녹화한 영상의 소리를 들려줍니다.
     }
 
     VideoOutput {
