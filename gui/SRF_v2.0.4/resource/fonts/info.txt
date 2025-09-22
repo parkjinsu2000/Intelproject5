@@ -1,0 +1,5 @@
+﻿license: Public Domain
+link: https://www.fontspace.com/public-pixel-font-f72305
+
+Copyright © 2017-2024, Eunbin Jeong (Dalgona.) <project-neodgm@dalgona.dev>
+with reserved font name "Neo둥근모" and "NeoDunggeunmo".

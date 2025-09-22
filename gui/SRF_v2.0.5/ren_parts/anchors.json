@@ -1,0 +1,36 @@
+{
+  "ref_size": [600, 1000],
+  "parts": {
+    "body": "body.png",
+    "left_upper_arm": "left_upper_arm.png",
+    "right_upper_arm": "right_upper_arm.png",
+    "left_lower_arm": "left_lower_arm.png",
+    "right_lower_arm": "right_lower_arm.png",
+    "left_upper_leg": "left_upper_leg.png",
+    "right_upper_leg": "right_upper_leg.png",
+    "left_lower_leg": "left_lower_leg.png",
+    "right_lower_leg": "right_lower_leg.png"
+  },
+  "anchors": {
+    "body>left_upper_arm":   { "parent": [223, 377], "child": [223, 377] },
+    "body>right_upper_arm":  { "parent": [345, 379], "child": [345, 379] },
+    "left_upper_arm>left_lower_arm":   { "parent": [161, 450], "child": [161, 450] },
+    "right_upper_arm>right_lower_arm": { "parent": [409, 452], "child": [409, 452] },
+    "left_upper_leg>body":   { "parent": [248, 537], "child": [248, 537] },
+    "right_upper_leg>body":  { "parent": [319, 535], "child": [319, 535] },
+    "left_upper_leg>left_lower_leg":   { "parent": [221, 682], "child": [221, 682] },
+    "right_upper_leg>right_lower_leg": { "parent": [362, 676], "child": [362, 676] }
+  },
+  "tip_lower": {
+    "left_lower_arm":  [37, 533],
+    "right_lower_arm": [542, 531],
+    "left_lower_leg":  [174, 901],
+    "right_lower_leg": [396, 902]
+  },
+  "background": {
+    "path": "stage.png", 
+    "color": [0, 0, 0],   
+    "resize": "native",     
+    "blur": 0           
+  }
+}
