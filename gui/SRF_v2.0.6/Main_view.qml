@@ -294,7 +294,7 @@ ApplicationWindow {
     function showCreditVideo() {
         console.log("🎬 크레딧 비디오 재생")
         backgroundMediaPlayer.muted = true
-        foregroundMediaPlayer.source = "/home/intel/demo/team5/Intelproject5/gui/SRF_v2.0.6/resource/character_4.mp4"
+        foregroundMediaPlayer.source = "resource/character_4.mp4"
         foregroundVideoOutput.visible = true
         foregroundMediaPlayer.play()
     }
