@@ -3,7 +3,7 @@
 
 ## 프로젝트 개요
 
-
+https://github.com/parkjinsu2000/Intelproject5/issues/36
 
 ## 👥 팀 구성 및 역할
 
