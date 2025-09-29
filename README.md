@@ -2,7 +2,7 @@
 인텔프로젝트5팀
 
 ## 프로젝트 개요
-
+![프로젝트 개요](https://github.com/parkjinsu2000/Intelproject5/blob/main/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%EA%B0%9C%EC%9A%94.png)
 
 
 
