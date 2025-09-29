@@ -5,6 +5,9 @@
 ![프로젝트 개요](https://github.com/parkjinsu2000/Intelproject5/blob/main/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%EA%B0%9C%EC%9A%94.png)
 
 
+## 시스템 구성도
+![시스템 구성도](https://github.com/parkjinsu2000/Intelproject5/blob/main/%EC%8B%9C%EC%8A%A4%ED%85%9C%EA%B5%AC%EC%84%B1%EB%8F%84.png)
+
 
 ## 👥 팀 구성 및 역할
 
