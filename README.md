@@ -1,4 +1,4 @@
-# Intelproject5
+# Street Reels Fighter
 인텔프로젝트5팀
 
 ## 👥 팀 구성 및 역할
